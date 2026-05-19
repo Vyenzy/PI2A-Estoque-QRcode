@@ -37,7 +37,7 @@ Abaixo estão as responsabilidades de cada especialista para a integração do p
 ---
 
 ## 🚀 Como rodar o projeto localmente
-1. Clone o repositório: `git clone [link-do-seu-repositorio]`
+1. Clone o repositório: `git clone https://github.com/Vyenzy/PI2A-Estoque-QRcode.git`
 2. Mude para a branch de desenvolvimento: `git checkout dev`
 3. Compile o código em C (necessário GCC e SQLite3):
    `gcc main.c -o estoque -lsqlite3`
