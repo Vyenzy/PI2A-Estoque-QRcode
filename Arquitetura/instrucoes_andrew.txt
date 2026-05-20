@@ -1,0 +1,5 @@
+O que fazer aqui: Salve os scripts em C (arquivos .c e .h)
+com a lógica de back-end que conecta com o banco de dados.
+Precisamos do código de inserção (INSERT) simulando a leitura
+do QR Code e do código de busca (SELECT) que roda a regra de
+negócio para achar lotes vencendo em menos de 7 dias.

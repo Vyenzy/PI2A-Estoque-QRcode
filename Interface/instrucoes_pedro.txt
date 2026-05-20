@@ -1,0 +1,5 @@
+Salve os códigos em C referentes ao nosso "Front-end"
+no terminal. A ideia é criar o Menu Principal
+(Switch/Case) que o usuário vai ver ao abrir o programa
+(Ex: 1. Ler Novo Lote / 2. Ver Vitrine de Descontos),
+puxando as funções que o Andrew criar na Arquitetura.

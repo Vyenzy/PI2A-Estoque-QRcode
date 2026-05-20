@@ -1,0 +1,5 @@
+Esta pasta guarda o nosso arquivo de criação 
+banco_estoque.sql e o arquivo do banco rodando
+banco_estoque.db. (Será criado quando o armazenamento for efetuado)
+Qualquer alteração na estrutura das tabelas ou novos dados de exemplo
+devem ser atualizados aqui.

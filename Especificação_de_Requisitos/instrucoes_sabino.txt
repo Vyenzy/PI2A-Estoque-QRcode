@@ -1,0 +1,4 @@
+Suba o documento (Word ou PDF) detalhando os Requisitos
+Funcionais e Não-Funcionais do nosso sistema de estoque
+Dual-System. Baseie-se no que foi definido nos slides da
+banca e no que está sendo programado em C.
