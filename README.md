@@ -43,3 +43,7 @@ Abaixo estão as responsabilidades de cada especialista para a integração do p
    `gcc main.c -o estoque -lsqlite3`
 4. Execute o programa:
    `./estoque` (Linux/Mac) ou `estoque.exe` (Windows)
+5. Como usar o docker:
+   O docker é um facilitador na hora de usar o GCC. Caso você já tenha o gcc instalado, ignore este passo;
+   Baixe o docker no seu computador, e clique no arquivo 'docker-compose.yml'. Neste, haverá um ">run all services" no topo. Apenas clique neste, e ele gerará um container no docker.
+   Assim que a imagem de gcc for gerada no docker, a execute pelo docker, e abra o container na aba de "containers" do vscode com o botão direito, na opção "Attach Visual studio code".
