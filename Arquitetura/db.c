@@ -35,7 +35,7 @@ void inserir_lote(sqlite3 *banco) {
     int quantidade;
     char validade[20];
 
-    printf("\n=== INSERIr LOTE ===\n");
+    printf("\n=== INSERIR LOTE ===\n");
 
     printf("ID do produto: ");
     scanf("%d", &produto_id);
@@ -60,6 +60,37 @@ void inserir_lote(sqlite3 *banco) {
     } else {
         printf("Lote inserido!\n");
     }
-    
-    
+}
+
+void buscar_vencimentos(sqlite3 *banco) {
+    char *erro = 0;
+
+    char *sql = "SELECT l.codigo_lote, "
+                "p.nome_produto, "
+                "l.validade "
+                "FROM lotes l "
+                "JOIN produtos p ON "
+                "l.produtos_id = p.id "
+                "WHERE date(l.validade) < date('now', '+7 days') "
+                "AND l.status = 'ativo';";
+
+    printf("\n=== VENCIMENTOS ===\n");
+
+    int status = sqlite3_exec(banco, sql, callback, 0, &erro);
+    if(status != SQLITE_OK) {
+        printf("Erro SELECT: %s\n", erro);
+        sqlite3_free(erro);
+    }
+}
+
+void listar_produtos(sqlite3 *banco) {
+    char *erro = 0;
+    char *sql = "SELECT id, nome, categoria, qtd_atual " "FROM produtos;";
+    printf("\n=== LISTA DE PRODUTOS ===\n");
+
+    int status = sqlite3_exec(banco, sql, callback, 0, &erro);
+if(status != SQLITE_OK) {
+    printf("Erro SELECT: %s\n", erro);
+    sqlite3_free(erro);
+}
 }
