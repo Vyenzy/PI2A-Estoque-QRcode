@@ -36,7 +36,6 @@ int carregarProdutos(Produto *lista) {
     sqlite3 *db;
     if (sqlite3_open(DB_PATH, &db) != SQLITE_OK) return 0;
 
-    // Busca os produtos e acha o lote mais próximo do vencimento
     const char *sql = 
         "SELECT p.codigo, p.nome, p.qtd_atual, p.qtd_minima, "
         "MIN(CAST(julianday(l.validade) - julianday('now') AS INT)) as dias_restantes "
@@ -56,15 +55,15 @@ int carregarProdutos(Produto *lista) {
             int qtd_minima = sqlite3_column_int(stmt, 3);
             lista[count].quantidade = qtd_atual;
             
-            // Tratamento de validade
             if (sqlite3_column_type(stmt, 4) == SQLITE_INTEGER) {
                 lista[count].dias_para_vencer = sqlite3_column_int(stmt, 4);
             } else {
-                lista[count].dias_para_vencer = 999; // Sem lote ativo
+                lista[count].dias_para_vencer = 999; 
             }
             
-            // Lógica de Status combinada
+            // NOVA LÓGICA DE STATUS
             if (qtd_atual == 0) strcpy(lista[count].status, "ESGOTADO");
+            else if (lista[count].dias_para_vencer <= 0) strcpy(lista[count].status, "VENCIDO"); // 0 dias ou menos = Lixo
             else if (lista[count].dias_para_vencer <= 14 || qtd_atual < qtd_minima) 
                 strcpy(lista[count].status, "ALERTA");
             else strcpy(lista[count].status, "OK");
@@ -85,7 +84,6 @@ void simularEntradaQR(const char *nomeProduto, const char *codigoProduto, const 
     sqlite3_stmt *stmt;
     char sql[512];
 
-    // 1. Acha ou cria o produto dinamicamente (Resolve o erro do Arroz)
     snprintf(sql, sizeof(sql), "SELECT id FROM produtos WHERE nome = '%s';", nomeProduto);
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) == SQLITE_OK) {
         if (sqlite3_step(stmt) == SQLITE_ROW) produto_id = sqlite3_column_int(stmt, 0);
@@ -98,37 +96,27 @@ void simularEntradaQR(const char *nomeProduto, const char *codigoProduto, const 
         produto_id = (int)sqlite3_last_insert_rowid(db);
     }
 
-    // 2. Calcula a data exata para o SQLite
     time_t agora = time(NULL);
     time_t data_futura = agora + (diasValidade * 24 * 60 * 60);
     struct tm *data_struct = localtime(&data_futura);
     char data_str[20];
     strftime(data_str, sizeof(data_str), "%Y-%m-%d", data_struct);
 
-    // 3. Insere o Lote
     snprintf(sql, sizeof(sql), "INSERT INTO lotes (produto_id, codigo_lote, quantidade, validade, status) VALUES (%d, '%s', %d, '%s', 'ativo');", produto_id, codigoLote, quantidade, data_str);
     sqlite3_exec(db, sql, NULL, 0, NULL);
 
-    // 4. Recalcula o total do produto
     snprintf(sql, sizeof(sql), "UPDATE produtos SET qtd_atual = IFNULL((SELECT SUM(quantidade) FROM lotes WHERE produto_id = %d AND status = 'ativo'), 0) WHERE id = %d;", produto_id, produto_id);
     sqlite3_exec(db, sql, NULL, 0, NULL);
 
     sqlite3_close(db);
 }
 
-void limparBancoDemo() 
-{
+void limparBancoDemo() {
     sqlite3 *db;
     if (sqlite3_open(DB_PATH, &db) == SQLITE_OK) {
-        // 1. Apaga todos os lotes de demonstração
         sqlite3_exec(db, "DELETE FROM lotes WHERE codigo_lote LIKE 'LT-%';", NULL, 0, NULL);
-        
-        // 2. Apaga todos os produtos criados pela demonstração (deixa apenas os originais)
         sqlite3_exec(db, "DELETE FROM produtos WHERE codigo LIKE 'PRD-%';", NULL, 0, NULL);
-        
-        // 3. Recalcula os totais dos produtos que sobraram (caso tivessem lotes misturados)
         sqlite3_exec(db, "UPDATE produtos SET qtd_atual = IFNULL((SELECT SUM(quantidade) FROM lotes WHERE lotes.produto_id = produtos.id AND status = 'ativo'), 0);", NULL, 0, NULL);
-        
         sqlite3_close(db);
     }
 }
@@ -143,13 +131,14 @@ int main(void) {
     SetTargetFPS(60);
     srand(time(NULL)); 
     
-    inicializarBanco(); // Cria estrutura se não existir
+    inicializarBanco(); 
 
     Color corFundo = (Color){ 245, 247, 250, 255 }; 
     Color corSidebar = (Color){ 33, 43, 54, 255 };  
     Color corBotaoAtivo = (Color){ 44, 123, 229, 255 }; 
     Color corTextoMenu = (Color){ 160, 174, 192, 255 }; 
     Color corDestaquePromo = (Color){ 220, 38, 38, 255 };
+    Color corDescarte = (Color){ 128, 0, 32, 255 }; // Cor Vinho para Vencidos (Maroon)
 
     TelaAtiva telaAtual = TELA_VISAO_GERAL;
     Rectangle btnVisao = { 15, 120, 220, 45 };
@@ -212,18 +201,18 @@ int main(void) {
                     
                     int indexCat = rand() % 20;
                     char codigoBase[20];
-                    sprintf(codigoBase, "PRD-%03d", indexCat + 1); // Código único pro produto
+                    sprintf(codigoBase, "PRD-%03d", indexCat + 1); 
                     
                     sprintf(ultimoLoteCodigo, "LT-%04d", rand() % 9999);
                     strcpy(ultimoLoteNome, catalogoNomes[indexCat]); 
                     
-                    // 70% Normais, 30% Críticos
+                    // Ajuste: Chance de cair em VENCIDO (0 dias) na hora da demo
                     if (rand() % 100 < 30) {
                         ultimoLoteQtd = (rand() % 15) + 5;
-                        ultimoLoteDiasVencimento = (rand() % 14) + 1; // 1 a 14 dias
+                        ultimoLoteDiasVencimento = rand() % 15; // De 0 a 14 dias (Pode dar 0!)
                     } else {
                         ultimoLoteQtd = (rand() % 80) + 30;
-                        ultimoLoteDiasVencimento = (rand() % 30) + 15; // 15+ dias
+                        ultimoLoteDiasVencimento = (rand() % 30) + 15; 
                     }
                     
                     simularEntradaQR(ultimoLoteNome, codigoBase, ultimoLoteCodigo, ultimoLoteQtd, ultimoLoteDiasVencimento);
@@ -272,7 +261,7 @@ int main(void) {
             DrawText("CODIGO", 310, 132, 14, DARKGRAY);
             DrawText("PRODUTO", 450, 132, 14, DARKGRAY);
             DrawText("QTD", 680, 132, 14, DARKGRAY);
-            DrawText("VALIDADE", 780, 132, 14, DARKGRAY); // EXIBE PARA FUNCIONÁRIO
+            DrawText("VALIDADE", 780, 132, 14, DARKGRAY); 
             DrawText("STATUS", 880, 132, 14, DARKGRAY);
 
             int indexInicio = paginaAtual * itensPorPagina;
@@ -297,10 +286,16 @@ int main(void) {
                 } else {
                     strcpy(validadeStr, "-");
                 }
-                DrawText(validadeStr, 780, yPos, 14, (produtos[i].dias_para_vencer <= 14) ? RED : GRAY);
+                
+                // Colorir a validade se for risco
+                Color corData = GRAY;
+                if (produtos[i].dias_para_vencer <= 0) corData = corDescarte;
+                else if (produtos[i].dias_para_vencer <= 14) corData = RED;
+                DrawText(validadeStr, 780, yPos, 14, corData);
                 
                 Color corStatus = GRAY;
-                if (strcmp(produtos[i].status, "ESGOTADO") == 0) corStatus = RED;
+                if (strcmp(produtos[i].status, "VENCIDO") == 0) corStatus = corDescarte;
+                else if (strcmp(produtos[i].status, "ESGOTADO") == 0) corStatus = RED;
                 else if (strcmp(produtos[i].status, "ALERTA") == 0) corStatus = ORANGE;
                 else if (strcmp(produtos[i].status, "OK") == 0) corStatus = LIME;
                 
@@ -339,21 +334,32 @@ int main(void) {
                 sprintf(txtNome, "Produto: %s", ultimoLoteNome);
                 sprintf(txtCodigo, "Codigo do Lote: %s", ultimoLoteCodigo);
                 sprintf(txtQtd, "Quantidade Lida: %d un.", ultimoLoteQtd);
-                sprintf(txtValidade, "Validade: Em %d dias", ultimoLoteDiasVencimento); // MOSTRA PRO FUNCIONÁRIO
+                
+                if (ultimoLoteDiasVencimento <= 0) sprintf(txtValidade, "Validade: VENCIDO HOJE!");
+                else sprintf(txtValidade, "Validade: Em %d dias", ultimoLoteDiasVencimento);
 
                 DrawText(txtNome, 600, 170, 14, GRAY);
                 DrawText(txtCodigo, 600, 195, 14, GRAY);
                 DrawText(txtQtd, 600, 220, 14, GRAY);
                 
-                DrawText(txtValidade, 600, 255, 14, (ultimoLoteDiasVencimento <= 14) ? RED : LIME);
-                if (ultimoLoteDiasVencimento <= 14 || ultimoLoteQtd < 25) {
+                Color corTextoValidade = LIME;
+                if (ultimoLoteDiasVencimento <= 0) corTextoValidade = corDescarte;
+                else if (ultimoLoteDiasVencimento <= 14) corTextoValidade = RED;
+
+                DrawText(txtValidade, 600, 255, 14, corTextoValidade);
+
+                if (ultimoLoteDiasVencimento <= 0) {
+                    DrawText("[!] ALERTA CRITICO:", 600, 280, 12, corDescarte);
+                    DrawText("Mercadoria imprópria. Separar para descarte.", 600, 295, 12, GRAY);
+                }
+                else if (ultimoLoteDiasVencimento <= 14 || ultimoLoteQtd < 25) {
                     DrawText("[!] ALERTA DUAL-SYSTEM:", 600, 280, 12, ORANGE);
                     DrawText("Regra de negocio acionada. Enviado a Vitrine.", 600, 295, 12, GRAY);
                 }
             }
         } 
         
-        // --- VITRINE DE ALERTAS ---
+        // --- VITRINE DE ALERTAS (ORDEM DE PRIORIDADE MULTI-PASS) ---
         else if (telaAtual == TELA_VITRINE) {
             DrawText("Painel do Gerente: Vitrine de Alertas", 290, 30, 24, DARKGRAY);
             
@@ -364,53 +370,89 @@ int main(void) {
             DrawText("CODIGO", 310, 132, 14, DARKGRAY);
             DrawText("PRODUTO EM RISCO", 450, 132, 14, DARKGRAY);
             DrawText("QTD", 670, 132, 14, DARKGRAY);
-            DrawText("VALIDADE", 740, 132, 14, DARKGRAY); // EXIBE PARA O FUNCIONÁRIO
+            DrawText("VALIDADE", 740, 132, 14, DARKGRAY); 
             DrawText("ACAO", 850, 132, 14, DARKGRAY);
             
             int vitrineCount = 0;
 
-            for (int i = 0; i < totalProdutos; i++) {
-                if (strcmp(produtos[i].status, "ESGOTADO") == 0 || strcmp(produtos[i].status, "ALERTA") == 0) {
-                    int yPos = 180 + (vitrineCount * 45); 
-                    if (yPos > 600) break; 
-                    
-                    DrawLine(290, yPos - 15, screenWidth - 40, yPos - 15, RED);
-                    DrawText(produtos[i].codigo, 310, yPos, 14, DARKGRAY);
-                    DrawText(produtos[i].nome, 450, yPos, 14, DARKGRAY);
-                    
-                    char qtdStr[10];
-                    sprintf(qtdStr, "%d", produtos[i].quantidade);
-                    DrawText(qtdStr, 670, yPos, 14, RED);
-                    
-                    char validadeStr[30];
-                    if (produtos[i].dias_para_vencer < 999) {
-                        sprintf(validadeStr, "%d dias", produtos[i].dias_para_vencer);
-                    } else {
-                        strcpy(validadeStr, "-");
-                    }
-                    DrawText(validadeStr, 740, yPos, 14, (produtos[i].dias_para_vencer <= 6) ? RED : ORANGE);
-                    
-                    if (strcmp(produtos[i].status, "ESGOTADO") == 0) DrawText("REPOR", 850, yPos, 14, RED);
-                    else DrawText("APP", 850, yPos, 14, ORANGE);
+            // STATUS PARA BUSCAR EM ORDEM DE PRIORIDADE
+            const char* prioridades[] = {"VENCIDO", "ESGOTADO", "ALERTA"};
+            
+            // Lógica de 3 Passos para desenhar na ordem exata de urgência
+            for (int p = 0; p < 3; p++) {
+                
+                // Dentro do "ALERTA", vamos buscar primeiro os que vencem mais rápido
+                int faixas_alerta[] = {2, 6, 10, 14, 999};
+                int faixas_alerta_ant[] = {0, 2, 6, 10, 14};
 
-                    vitrineCount++;
+                for (int f = 0; f < 5; f++) {
+                    for (int i = 0; i < totalProdutos; i++) {
+                        
+                        // Verifica se o produto se encaixa no passo atual (p)
+                        if (strcmp(produtos[i].status, prioridades[p]) == 0) {
+                            
+                            // Se for ALERTA, aplica o filtro extra de dias (f)
+                            if (p == 2 && !(produtos[i].dias_para_vencer > faixas_alerta_ant[f] && produtos[i].dias_para_vencer <= faixas_alerta[f])) {
+                                continue; 
+                            }
+
+                            int yPos = 180 + (vitrineCount * 45); 
+                            if (yPos > 600) break; 
+                            
+                            DrawLine(290, yPos - 15, screenWidth - 40, yPos - 15, RED);
+                            DrawText(produtos[i].codigo, 310, yPos, 14, DARKGRAY);
+                            DrawText(produtos[i].nome, 450, yPos, 14, DARKGRAY);
+                            
+                            char qtdStr[10];
+                            sprintf(qtdStr, "%d", produtos[i].quantidade);
+                            DrawText(qtdStr, 670, yPos, 14, RED);
+                            
+                            char validadeStr[30];
+                            if (produtos[i].dias_para_vencer < 999) {
+                                sprintf(validadeStr, "%d dias", produtos[i].dias_para_vencer);
+                            } else {
+                                strcpy(validadeStr, "-");
+                            }
+                            
+                            // Cores e Textos Baseados na Prioridade
+                            if (p == 0) {
+                                DrawText(validadeStr, 740, yPos, 14, corDescarte);
+                                DrawText("DESCARTAR", 850, yPos, 14, corDescarte);
+                            } else if (p == 1) {
+                                DrawText(validadeStr, 740, yPos, 14, GRAY);
+                                DrawText("REPOR", 850, yPos, 14, RED);
+                            } else if (p == 2) {
+                                DrawText(validadeStr, 740, yPos, 14, RED);
+                                DrawText("APP / PROMO", 850, yPos, 14, ORANGE);
+                            }
+
+                            vitrineCount++;
+                        }
+                    }
+                    if (p != 2) break; // Só faz o loop de 'f' (faixas) se for ALERTA
                 }
             }
         }
         
-        // --- APP DO CLIENTE ---
+        // --- APP DO CLIENTE (OFERTAS ORDENADAS POR DESCONTO) ---
         else if (telaAtual == TELA_CLIENTE) {
             DrawText("App do Consumidor - Dual-System Supermercados", 290, 30, 24, corDestaquePromo);
             DrawText("Aproveite as promocoes de queima de estoque!", 290, 65, 14, GRAY);
             
             int qtCards = 0;
-            for (int i = 0; i < totalProdutos; i++) {
-                if (strcmp(produtos[i].status, "ALERTA") == 0) {
+            
+            // FAIXAS DE DESCONTO: Busca primeiro quem tem <=2 dias, depois <=6, etc.
+            int limites[] = {2, 6, 10, 14};
+            int prev_limite = 0;
+
+            for (int f = 0; f < 4; f++) {
+                for (int i = 0; i < totalProdutos; i++) {
                     
-                    int diasParaVencer = produtos[i].dias_para_vencer;
-                    
-                    // Só exibe pro cliente se estiver nas 2 semanas finais
-                    if (diasParaVencer <= 14 && diasParaVencer > 0) {
+                    int dias = produtos[i].dias_para_vencer;
+
+                    // O Item SÓ VAI PRO APP se for ALERTA e estiver na faixa atual do loop
+                    if (strcmp(produtos[i].status, "ALERTA") == 0 && dias > prev_limite && dias <= limites[f]) {
+                        
                         int col = qtCards % 3; 
                         int row = qtCards / 3; 
                         if (row >= 3) break; 
@@ -418,10 +460,11 @@ int main(void) {
                         int xCard = 290 + (col * 240); 
                         int yCard = 120 + (row * 160); 
 
+                        // Calcula Porcentagem (Vinculado a Faixa atual 'f')
                         int porcentagemDesconto;
-                        if (diasParaVencer <= 2) porcentagemDesconto = 80;
-                        else if (diasParaVencer <= 6) porcentagemDesconto = 60;
-                        else if (diasParaVencer <= 10) porcentagemDesconto = 40;
+                        if (f == 0) porcentagemDesconto = 80;
+                        else if (f == 1) porcentagemDesconto = 60;
+                        else if (f == 2) porcentagemDesconto = 40;
                         else porcentagemDesconto = 20;
 
                         DrawRectangle(xCard, yCard, 220, 140, WHITE);
@@ -435,13 +478,13 @@ int main(void) {
                         sprintf(txtDesconto, "%d%% OFF!", porcentagemDesconto);
                         DrawText(txtDesconto, xCard + 15, yCard + 70, 26, RED);
                         
-                        // CLIENTE NÃO VÊ A DATA, APENAS O SENSO DE URGÊNCIA
                         DrawText("Vencimento proximo!", xCard + 15, yCard + 105, 12, GRAY);
                         DrawText("APROVEITE AGORA!", xCard + 15, yCard + 120, 12, DARKGRAY);
 
                         qtCards++;
                     }
                 }
+                prev_limite = limites[f]; // Prepara para buscar a próxima faixa de dias
             }
             if (qtCards == 0) {
                 DrawText("Nenhuma oferta no momento. Volte mais tarde!", 290, 150, 16, GRAY);
