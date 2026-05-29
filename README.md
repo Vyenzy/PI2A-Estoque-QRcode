@@ -1,49 +1,68 @@
-# Sistema Autônomo de Monitoramento de Estoque Varejista via QR Code
-**Projeto Integrador 2A - ENG183 | Grupo 1 | IESB**
+# 📦 Dual-System: Gestão de Estoque Inteligente & Marketplace
 
-## 📌 Sobre o Projeto
-Este repositório contém o código-fonte e a documentação do projeto de gestão inteligente de estoque (Dual-System). O sistema utiliza uma **Gestão de Lotes Híbrida**, lendo QR Codes de caixas master para alimentar um banco de dados local. 
+![Status](https://img.shields.io/badge/Status-Release_Final-success)
+![Linguagem](https://img.shields.io/badge/Linguagem-C-blue)
+![UI](https://img.shields.io/badge/Interface-Raylib-red)
+![Banco](https://img.shields.io/badge/Banco_de_Dados-SQLite-lightgrey)
 
-O sistema possui duas frentes:
-1. **Back-end (Prevenção de Perdas):** Monitora validades e alerta sobre produtos vencendo.
-2. **Front-end (Vitrine de Oportunidades):** Produtos próximos ao vencimento (ex: < 7 dias) recebem alertas de desconto.
-
-## 🛠️ Tecnologias Utilizadas
-* **Banco de Dados:** SQLite (`.sql` e `.db`)
-* **Lógica e Arquitetura:** Linguagem C (com biblioteca `sqlite3.h`)
-* **Interface:** Terminal interativo (CLI)
+O **Dual-System** é uma plataforma híbrida de gerenciamento de estoque desenvolvida em **C nativo**. O projeto une a robustez de um banco de dados relacional (SQLite) a uma interface gráfica fluida (Raylib), simulando o ciclo de vida completo de uma mercadoria: desde a chegada no caminhão até a venda promocional para o cliente final.
 
 ---
 
-## 📋 Divisão de Tarefas - Fase de Execução
+## ✨ Características e Funcionalidades
 
-Abaixo estão as responsabilidades de cada especialista para a integração do protótipo:
+O sistema foi arquitetado para atender a duas pontas do negócio (por isso, *Dual-System*): o **Gerente** e o **Cliente**.
 
-* **@Andrew (Regras de Negócio e Logística):**
-  * Desenvolver os scripts em C para Inserção (INSERT) e Busca (SELECT) conectando ao arquivo `.db`.
-  * Implementar a lógica de alerta para lotes com validade inferior a 7 dias.
+### 🏢 Visão Gerencial (Back-Office)
+* **Visão Geral Paginada:** Monitoramento em tempo real do estoque. O sistema exibe a quantidade, os dias exatos para o vencimento de cada lote e classifica o status (`OK`, `ALERTA` e `ESGOTADO`).
+* **Simulador de Scanner QR Code:** Módulo de "Entrada de Lote" que simula a leitura de manifestos de carga. Gera lotes dinâmicos (com quantidades e validades variadas), calcula os riscos e grava no banco de dados automaticamente.
+* **Vitrine de Alertas (Fila de Prioridade):** Um painel de triagem inteligente. Produtos que acabaram (`ESGOTADO`) assumem o topo da lista para pedido de reposição. Produtos próximos ao vencimento (`ALERTA`) são listados logo abaixo com seus dias restantes exatos, sugerindo o envio para o app de ofertas.
 
-* **@Pedro Ivan (Arquitetura de Software):**
-  * Estruturar o Menu Interativo principal no terminal.
-  * Conectar as opções do menu às funções de banco de dados desenvolvidas pela regra de negócio.
+### 🛒 Visão do Cliente (Front-End / Marketplace)
+* **App do Consumidor:** Interface focada em conversão. O cliente não vê o painel burocrático, apenas uma grade atrativa de **Ofertas do Dia**.
+* **Precificação Dinâmica:** O sistema aplica regras de negócio reais. Lotes que entram na janela crítica de 14 dias para o vencimento ganham descontos progressivos e agressivos (de **20% até 80% OFF**), gerando senso de urgência ("Restam só X unidades!").
 
-* **@Sabino (Especificação de Requisitos):**
-  * Redigir o documento final com os Requisitos Funcionais e Não-Funcionais baseados no escopo Dual-System implementado.
-
-* **@Lucas Ferreira (Testes e Qualidade):**
-  * Montar a planilha de Cenários de Teste.
-  * Executar e documentar testes de limite (ex: tentar inserir lote duplicado, verificar disparo de alertas de vencimento).
+### ⚙️ Funcionalidades Extras (Modo Apresentação)
+* **Botão de Reset Dinâmico:** Uma funcionalidade exclusiva para demonstrações. Limpa todos os lotes "simulados" do banco de dados com um clique, restaurando o cenário original da loja para a próxima apresentação sem precisar reiniciar o app.
 
 ---
 
-## 🚀 Como rodar o projeto localmente
-1. Clone o repositório: `git clone https://github.com/Vyenzy/PI2A-Estoque-QRcode.git`
-2. Mude para a branch de desenvolvimento: `git checkout dev`
-3. Compile o código em C (necessário GCC e SQLite3):
-   `gcc main.c man_db.c -o estoque -lsqlite3`
-4. Execute o programa:
-   `./estoque` (Linux/Mac) ou `estoque.exe` (Windows)
-5. Como usar o docker:
-   O docker é um facilitador na hora de usar o GCC. Caso você já tenha o gcc instalado, ignore este passo;
-   Baixe o docker no seu computador, e clique no arquivo 'docker-compose.yml'. Neste, haverá um ">run all services" no topo. Apenas clique neste, e ele gerará um container no docker.
-   Assim que a imagem de gcc for gerada no docker, a execute pelo docker, e abra o container na aba de "containers" do vscode com o botão direito, na opção "Attach Visual studio code".
+## 🚀 Arquitetura e Tecnologias
+
+* **Linguagem Base:** `C` (Gerenciamento de memória, lógica e structs).
+* **Persistência:** `SQLite3` (Vendorizado via *Amalgamation* para rodar localmente sem servidores externos).
+* **Motor Gráfico:** `Raylib` (Renderização de UI a 60 FPS acelerada por hardware).
+* **Build e Deploy:** `Makefile` e `Docker` (Cross-compilation de Linux para Windows `x86_64-w64-mingw32`).
+
+---
+
+## 📁 Estrutura do Projeto
+
+```text
+Sistema/
+├── dados/
+│   └── banco_estoque.db    # Banco de dados relacional (Schema e Dados)
+├── libs/
+│   ├── libraylib.a         # Motor gráfico pré-compilado
+│   ├── raylib.h            # Headers da interface
+│   ├── sqlite3.c           # Motor do banco de dados 
+│   └── sqlite3.h
+├── interface.c             # Ponto de entrada (Main), lógica de UI e regras de negócio
+├── Makefile                # Automação das rotinas de compilação
+└── painel.exe              # Executável de produção (Windows)
+
+🛠️ Como Utilizar e Executar
+Este projeto foi empacotado para execução direta e simplificada.
+
+Compilação para Desenvolvedores (Via Docker/Make)
+Caso deseje modificar o código (interface.c) e gerar uma nova versão:
+
+Abra o terminal do seu ambiente Docker mapeado para a pasta Sistema.
+
+Utilize os comandos automatizados:
+
+make: Compila o projeto em modo Debug (mantém o terminal de log aberto em segundo plano).
+
+make banca: Compila o projeto em modo Release (oculta o terminal de comando, exibindo apenas a UI, ideal para produção).
+
+make clean: Apaga o executável para uma compilação limpa.
