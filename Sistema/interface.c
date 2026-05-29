@@ -116,11 +116,19 @@ void simularEntradaQR(const char *nomeProduto, const char *codigoProduto, const 
     sqlite3_close(db);
 }
 
-void limparBancoDemo() {
+void limparBancoDemo() 
+{
     sqlite3 *db;
     if (sqlite3_open(DB_PATH, &db) == SQLITE_OK) {
+        // 1. Apaga todos os lotes de demonstração
         sqlite3_exec(db, "DELETE FROM lotes WHERE codigo_lote LIKE 'LT-%';", NULL, 0, NULL);
+        
+        // 2. Apaga todos os produtos criados pela demonstração (deixa apenas os originais)
+        sqlite3_exec(db, "DELETE FROM produtos WHERE codigo LIKE 'PRD-%';", NULL, 0, NULL);
+        
+        // 3. Recalcula os totais dos produtos que sobraram (caso tivessem lotes misturados)
         sqlite3_exec(db, "UPDATE produtos SET qtd_atual = IFNULL((SELECT SUM(quantidade) FROM lotes WHERE lotes.produto_id = produtos.id AND status = 'ativo'), 0);", NULL, 0, NULL);
+        
         sqlite3_close(db);
     }
 }
