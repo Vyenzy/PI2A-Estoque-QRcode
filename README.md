@@ -1,6 +1,6 @@
 # 📦 Dual-System: Gestão de Estoque Inteligente & Marketplace
 
-![Status](https://img.shields.io/badge/Status-Release_Final-success)
+![Status](https://img.shields.io/badge/Status-Em_Desenvolvimento-yellow)
 ![Linguagem](https://img.shields.io/badge/Linguagem-C-blue)
 ![UI](https://img.shields.io/badge/Interface-Raylib-red)
 ![Banco](https://img.shields.io/badge/Banco_de_Dados-SQLite-lightgrey)
