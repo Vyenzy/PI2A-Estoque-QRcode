@@ -54,6 +54,8 @@ Sistema/
 🛠️ Como Utilizar e Executar
 Este projeto foi empacotado para execução direta e simplificada.
 
+Para testes de qualidade, rode o programa "painel.exe" com o nome de Sistema.
+
 Compilação para Desenvolvedores (Via Docker/Make)
 Caso deseje modificar o código (interface.c) e gerar uma nova versão:
 
