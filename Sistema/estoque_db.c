@@ -9,7 +9,6 @@ int carregarProdutos(Produto *lista) {
     sqlite3 *db;
     if (sqlite3_open(DB_PATH, &db) != SQLITE_OK) return 0;
 
-    // Buscando agora também o código do lote (IFNULL evita erros se estiver vazio)
     const char *sql = 
         "SELECT p.codigo, p.nome, "
         "IFNULL(l.quantidade, 0) as qtd_lote, "
@@ -33,7 +32,7 @@ int carregarProdutos(Produto *lista) {
             int qtd_minima = sqlite3_column_int(stmt, 3);
             int qtd_total = sqlite3_column_int(stmt, 5); 
             
-            strcpy(lista[count].codigo_lote, (const char*)sqlite3_column_text(stmt, 6)); // Salva o Lote
+            strcpy(lista[count].codigo_lote, (const char*)sqlite3_column_text(stmt, 6)); 
             lista[count].quantidade = qtd_lote;
             
             if (sqlite3_column_type(stmt, 4) == SQLITE_INTEGER) lista[count].dias_para_vencer = sqlite3_column_int(stmt, 4);
@@ -54,7 +53,6 @@ int carregarProdutos(Produto *lista) {
     sqlite3_close(db);
     return count;
 }
-
 
 int carregarResumoDia(ResumoDia *lista) {
     sqlite3 *db;
@@ -117,9 +115,8 @@ void simularEntradaQR(const char *nomeProduto, const char *codigoProduto, const 
     snprintf(sql, sizeof(sql), "INSERT INTO lotes (produto_id, codigo_lote, quantidade, validade, status) VALUES (%d, '%s', %d, '%s', 'ativo');", produto_id, codigoLote, quantidade, data_str);
     sqlite3_exec(db, sql, NULL, 0, NULL);
     
-    int lote_id = (int)sqlite3_last_insert_rowid(db); // Pega o ID do lote gerado
+    int lote_id = (int)sqlite3_last_insert_rowid(db); 
 
-    // REGISTRA A ENTRADA NA MOVIMENTAÇÃO
     snprintf(sql, sizeof(sql), "INSERT INTO movimentacoes (lote_id, produto_id, tipo, quantidade) VALUES (%d, %d, 'entrada', %d);", lote_id, produto_id, quantidade);
     sqlite3_exec(db, sql, NULL, 0, NULL);
 
@@ -156,13 +153,15 @@ void simularVendasDoDia() {
         int qtd_comprada = (rand() % 5) + 1; 
         if (qtd_comprada > sorteados[i].qtd_disp) qtd_comprada = sorteados[i].qtd_disp; 
 
+        // Diminui do lote específico
         snprintf(sql_update, sizeof(sql_update), "UPDATE lotes SET quantidade = quantidade - %d WHERE id = %d;", qtd_comprada, sorteados[i].lote_id);
         sqlite3_exec(db, sql_update, NULL, 0, NULL);
 
-        snprintf(sql_update, sizeof(sql_update), "UPDATE produtos SET qtd_atual = qtd_atual - %d WHERE id = %d;", qtd_comprada, sorteados[i].prod_id);
+        // ATUALIZAÇÃO ROBUSTA: Recalcula o estoque total somando os lotes para evitar desync
+        snprintf(sql_update, sizeof(sql_update), "UPDATE produtos SET qtd_atual = IFNULL((SELECT SUM(quantidade) FROM lotes WHERE produto_id = %d AND status = 'ativo'), 0) WHERE id = %d;", sorteados[i].prod_id, sorteados[i].prod_id);
         sqlite3_exec(db, sql_update, NULL, 0, NULL);
 
-        // REGISTRA A SAÍDA NA MOVIMENTAÇÃO E NA VENDA
+        // Registra a Movimentação e a Venda
         snprintf(sql_update, sizeof(sql_update), "INSERT INTO movimentacoes (lote_id, produto_id, tipo, quantidade) VALUES (%d, %d, 'saida', %d);", sorteados[i].lote_id, sorteados[i].prod_id, qtd_comprada);
         sqlite3_exec(db, sql_update, NULL, 0, NULL);
 
@@ -177,7 +176,7 @@ void simularVendasDoDia() {
 void limparBancoDemo() {
     sqlite3 *db;
     if (sqlite3_open(DB_PATH, &db) == SQLITE_OK) {
-        sqlite3_exec(db, "DELETE FROM movimentacoes;", NULL, 0, NULL); // Apaga as movimentações
+        sqlite3_exec(db, "DELETE FROM movimentacoes;", NULL, 0, NULL); 
         sqlite3_exec(db, "DELETE FROM lotes WHERE codigo_lote LIKE 'LT-%';", NULL, 0, NULL);
         sqlite3_exec(db, "DELETE FROM produtos WHERE codigo LIKE 'PRD-%';", NULL, 0, NULL);
         sqlite3_exec(db, "DELETE FROM vendas;", NULL, 0, NULL); 

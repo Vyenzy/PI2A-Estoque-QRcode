@@ -22,7 +22,7 @@ int main(void) {
     Color corTextoMenu = (Color){ 160, 174, 192, 255 }; 
     Color corDestaquePromo = (Color){ 220, 38, 38, 255 };
     Color corDescarte = (Color){ 128, 0, 32, 255 }; 
-    Color corEntrada = (Color){ 46, 204, 113, 255 }; // Verde Sucesso
+    Color corEntrada = (Color){ 46, 204, 113, 255 }; 
 
     TelaAtiva telaAtual = TELA_VISAO_GERAL;
     Rectangle btnVisao = { 15, 120, 220, 45 };
@@ -42,7 +42,7 @@ int main(void) {
     Rectangle btnAnt = { 290, 640, 110, 35 };
     Rectangle btnProx = { 420, 640, 110, 35 };
 
-    char ultimoLoteCodigo[20] = "";
+    char ultimoLoteCodigo[30] = "";
     char ultimoLoteNome[50] = "";
     int ultimoLoteQtd = 0;
     int ultimoLoteDiasVencimento = 0;
@@ -56,45 +56,52 @@ int main(void) {
     };
 
     Produto produtos[MAX_PRODUTOS];
-    ResumoDia resumo[MAX_PRODUTOS]; // LISTA CONSOLIDADA ATUALIZADA
+    ResumoDia resumo[MAX_PRODUTOS];
     
     int totalProdutos = carregarProdutos(produtos);
-    int totalResumo = carregarResumoDia(resumo); // CARREGA O BALANCETE
+    int totalResumo = carregarResumoDia(resumo); 
 
     while (!WindowShouldClose()) {
         
         Vector2 mousePoint = GetMousePosition();
-        int maxPaginas = (totalProdutos > 0) ? (totalProdutos - 1) / itensPorPagina : 0;
+        
+        // CÁLCULO DINÂMICO DE PAGINAÇÃO
+        int maxPaginas = 0;
+        if (telaAtual == TELA_VISAO_GERAL) maxPaginas = (totalProdutos > 0) ? (totalProdutos - 1) / itensPorPagina : 0;
+        else if (telaAtual == TELA_RELATORIO) maxPaginas = (totalResumo > 0) ? (totalResumo - 1) / 10 : 0;
         
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             
+            // TROCA DE TELAS (ZERA A PÁGINA)
             if (CheckCollisionPointRec(mousePoint, btnVisao)) { telaAtual = TELA_VISAO_GERAL; paginaAtual = 0; }
-            if (CheckCollisionPointRec(mousePoint, btnEntrada)) telaAtual = TELA_ENTRADA_LOTE;
-            if (CheckCollisionPointRec(mousePoint, btnVitrine)) telaAtual = TELA_VITRINE;
-            if (CheckCollisionPointRec(mousePoint, btnCliente)) telaAtual = TELA_CLIENTE; 
-            if (CheckCollisionPointRec(mousePoint, btnRelatorio)) telaAtual = TELA_RELATORIO; 
+            if (CheckCollisionPointRec(mousePoint, btnEntrada)) { telaAtual = TELA_ENTRADA_LOTE; paginaAtual = 0; }
+            if (CheckCollisionPointRec(mousePoint, btnVitrine)) { telaAtual = TELA_VITRINE; paginaAtual = 0; }
+            if (CheckCollisionPointRec(mousePoint, btnCliente)) { telaAtual = TELA_CLIENTE; paginaAtual = 0; }
+            if (CheckCollisionPointRec(mousePoint, btnRelatorio)) { telaAtual = TELA_RELATORIO; paginaAtual = 0; }
 
             if (CheckCollisionPointRec(mousePoint, btnReset)) {
                 limparBancoDemo();
                 totalProdutos = carregarProdutos(produtos); 
-                totalResumo = carregarResumoDia(resumo); // ATUALIZA AQUI
+                totalResumo = carregarResumoDia(resumo); 
                 paginaAtual = 0;
                 qrLido = false; 
             }
 
-            if (telaAtual == TELA_VISAO_GERAL) {
+            // BOTÕES DE PAGINAÇÃO
+            if (telaAtual == TELA_VISAO_GERAL || telaAtual == TELA_RELATORIO) {
                 if (CheckCollisionPointRec(mousePoint, btnAnt) && paginaAtual > 0) paginaAtual--;
                 if (CheckCollisionPointRec(mousePoint, btnProx) && paginaAtual < maxPaginas) paginaAtual++;
             }
 
             if (telaAtual == TELA_ENTRADA_LOTE && CheckCollisionPointRec(mousePoint, btnQR)) {
-                if (GetTime() - tempoUltimoClique > 0.5) {
+                if (GetTime() - tempoUltimoClique > 0.2) { // 0.2 para ser mais responsivo
                     
                     int indexCat = rand() % 20;
                     char codigoBase[20];
                     sprintf(codigoBase, "PRD-%03d", indexCat + 1); 
                     
-                    sprintf(ultimoLoteCodigo, "LT-%04d", rand() % 9999);
+                    // GERADOR BLINDADO (0 a 999.999 para nunca falhar por colisão no banco)
+                    sprintf(ultimoLoteCodigo, "LT-%06d", rand() % 999999);
                     strcpy(ultimoLoteNome, catalogoNomes[indexCat]); 
                     
                     if (rand() % 100 < 30) {
@@ -107,7 +114,7 @@ int main(void) {
                     
                     simularEntradaQR(ultimoLoteNome, codigoBase, ultimoLoteCodigo, ultimoLoteQtd, ultimoLoteDiasVencimento);
                     totalProdutos = carregarProdutos(produtos); 
-                    totalResumo = carregarResumoDia(resumo); // ATUALIZA AQUI
+                    totalResumo = carregarResumoDia(resumo); 
                     
                     qrLido = true;
                     tempoUltimoClique = GetTime(); 
@@ -115,10 +122,10 @@ int main(void) {
             }
 
             if (telaAtual == TELA_RELATORIO && CheckCollisionPointRec(mousePoint, btnSimularVenda)) {
-                if (GetTime() - tempoUltimoClique > 0.5) {
+                if (GetTime() - tempoUltimoClique > 0.2) {
                     simularVendasDoDia();
                     totalProdutos = carregarProdutos(produtos); 
-                    totalResumo = carregarResumoDia(resumo); // ATUALIZA AQUI
+                    totalResumo = carregarResumoDia(resumo); 
                     tempoUltimoClique = GetTime();
                 }
             }
@@ -162,12 +169,13 @@ int main(void) {
             DrawRectangleLines(290, 120, screenWidth - 330, 500, LIGHTGRAY);
             DrawRectangle(290, 120, screenWidth - 330, 40, (Color){ 237, 242, 249, 255 });
             
-            DrawText("CODIGO", 310, 132, 14, DARKGRAY);
-            DrawText("PRODUTO", 410, 132, 14, DARKGRAY);
-            DrawText("LOTE", 560, 132, 14, DARKGRAY);
-            DrawText("QTD", 670, 132, 14, DARKGRAY);
-            DrawText("VALIDADE", 760, 132, 14, DARKGRAY); 
-            DrawText("STATUS", 860, 132, 14, DARKGRAY);
+            // COLUNAS AFASTADAS PARA NÃO SOBREPOR
+            DrawText("CODIGO", 300, 132, 14, DARKGRAY);
+            DrawText("PRODUTO", 390, 132, 14, DARKGRAY);
+            DrawText("LOTE", 610, 132, 14, DARKGRAY); 
+            DrawText("QTD", 700, 132, 14, DARKGRAY);
+            DrawText("VALIDADE", 780, 132, 14, DARKGRAY); 
+            DrawText("STATUS", 880, 132, 14, DARKGRAY);
 
             int indexInicio = paginaAtual * itensPorPagina;
             int indexFim = indexInicio + itensPorPagina;
@@ -178,13 +186,13 @@ int main(void) {
                 int yPos = 180 + (indexNaTela * 45); 
 
                 DrawLine(290, yPos - 15, screenWidth - 40, yPos - 15, LIGHTGRAY);
-                DrawText(produtos[i].codigo, 310, yPos, 14, GRAY);
-                DrawText(produtos[i].nome, 410, yPos, 14, GRAY);
-                DrawText(produtos[i].codigo_lote, 560, yPos, 14, GRAY);
+                DrawText(produtos[i].codigo, 300, yPos, 14, GRAY);
+                DrawText(produtos[i].nome, 390, yPos, 14, GRAY);
+                DrawText(produtos[i].codigo_lote, 610, yPos, 14, GRAY); 
                 
                 char qtdStr[10];
                 sprintf(qtdStr, "%d un.", produtos[i].quantidade);
-                DrawText(qtdStr, 670, yPos, 14, GRAY);
+                DrawText(qtdStr, 700, yPos, 14, GRAY);
                 
                 char validadeStr[30];
                 if (produtos[i].dias_para_vencer < 999) sprintf(validadeStr, "%d dias", produtos[i].dias_para_vencer);
@@ -193,7 +201,7 @@ int main(void) {
                 Color corData = GRAY;
                 if (produtos[i].dias_para_vencer <= 0) corData = corDescarte;
                 else if (produtos[i].dias_para_vencer <= 14) corData = RED;
-                DrawText(validadeStr, 760, yPos, 14, corData);
+                DrawText(validadeStr, 780, yPos, 14, corData);
                 
                 Color corStatus = GRAY;
                 if (strcmp(produtos[i].status, "VENCIDO") == 0) corStatus = corDescarte;
@@ -201,7 +209,7 @@ int main(void) {
                 else if (strcmp(produtos[i].status, "ALERTA") == 0) corStatus = ORANGE;
                 else if (strcmp(produtos[i].status, "OK") == 0) corStatus = LIME;
                 
-                DrawText(produtos[i].status, 860, yPos, 14, corStatus);
+                DrawText(produtos[i].status, 880, yPos, 14, corStatus);
             }
 
             if (paginaAtual > 0) {
@@ -361,7 +369,7 @@ int main(void) {
             if (qtCards == 0) DrawText("Nenhuma oferta no momento. Volte mais tarde!", 290, 150, 16, GRAY);
         }
 
-        // --- RELATÓRIO DO DIA (BALANCETE CONSOLIDADO) ---
+        // --- RELATÓRIO DO DIA ---
         else if (telaAtual == TELA_RELATORIO) {
             DrawText("Fechamento de Caixa: Balancete Consolidado", 290, 30, 24, DARKGRAY);
             
@@ -375,11 +383,16 @@ int main(void) {
             DrawText("PRODUTO", 310, 192, 14, DARKGRAY);
             DrawText("CHEGARAM (+)", 550, 192, 14, DARKGRAY);
             DrawText("VENDIDOS (-)", 700, 192, 14, DARKGRAY);
-            DrawText("ESTOQUE TOTAL", 850, 192, 14, DARKGRAY);
+            DrawText("ESTOQUE TOTAL", 850, 192, 14, DARKGRAY); 
 
-            for (int i = 0; i < totalResumo; i++) {
-                int yPos = 240 + (i * 40); 
-                if (yPos > 680) break;
+            // PAGINAÇÃO AGORA APLICADA AQUI TAMBÉM
+            int indexInicioResumo = paginaAtual * 10;
+            int indexFimResumo = indexInicioResumo + 10;
+            if (indexFimResumo > totalResumo) indexFimResumo = totalResumo;
+
+            for (int i = indexInicioResumo; i < indexFimResumo; i++) {
+                int indexNaTela = i - indexInicioResumo;
+                int yPos = 240 + (indexNaTela * 40); 
 
                 DrawLine(290, yPos - 10, screenWidth - 40, yPos - 10, LIGHTGRAY);
                 
@@ -401,6 +414,19 @@ int main(void) {
             if (totalResumo == 0) {
                 DrawText("Nenhuma movimentacao ou produto registrado ainda.", 310, 240, 14, GRAY);
             }
+            
+            // BOTÕES DE PAGINAÇÃO DO RESUMO
+            if (paginaAtual > 0) {
+                DrawRectangleRec(btnAnt, corSidebar);
+                DrawText("<< Anterior", 305, 650, 14, WHITE);
+            }
+            if (paginaAtual < maxPaginas) {
+                DrawRectangleRec(btnProx, corSidebar);
+                DrawText("Proxima >>", 440, 650, 14, WHITE);
+            }
+            char pagText[50];
+            sprintf(pagText, "Pagina %d de %d (Total: %d registros)", paginaAtual + 1, maxPaginas + 1, totalResumo);
+            DrawText(pagText, 700, 650, 14, GRAY);
         }
 
         EndDrawing();
