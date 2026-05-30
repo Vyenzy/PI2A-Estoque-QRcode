@@ -18,7 +18,7 @@ int carregarProdutos(Produto *lista) {
         "IFNULL(l.codigo_lote, '-') as lote "
         "FROM produtos p "
         "LEFT JOIN lotes l ON p.id = l.produto_id AND l.status = 'ativo' AND l.quantidade > 0 "
-        "ORDER BY p.id DESC, dias_restantes ASC;";
+        "ORDER BY dias_restantes IS NULL, dias_restantes ASC, p.id DESC;";
     
     sqlite3_stmt *stmt;
     int count = 0;
