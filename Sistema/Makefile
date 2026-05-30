@@ -8,8 +8,8 @@ CC = x86_64-w64-mingw32-gcc
 INCLUDES = -I./libs
 LIBS = -L./libs -lraylib -lopengl32 -lgdi32 -lwinmm
 
-# Os Ingredientes (Seus códigos)
-SOURCES = interface.c libs/sqlite3.c
+# Os Ingredientes (Seus códigos) - AQUI FOI ADICIONADO O ESTOQUE_DB.C!
+SOURCES = interface.c estoque_db.c libs/sqlite3.c
 
 # 1. Comando Padrão (Para desenvolvimento com o terminal de debug)
 all:
