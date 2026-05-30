@@ -36,9 +36,10 @@ int carregarProdutos(Produto *lista) {
     sqlite3 *db;
     if (sqlite3_open(DB_PATH, &db) != SQLITE_OK) return 0;
 
+// Busca os produtos e acha o lote mais próximo do vencimento
     const char *sql = 
         "SELECT p.codigo, p.nome, p.qtd_atual, p.qtd_minima, "
-        "MIN(CAST(julianday(l.validade) - julianday('now') AS INT)) as dias_restantes "
+        "MIN(CAST(julianday(l.validade) - julianday(date('now', 'localtime')) AS INT)) as dias_restantes "
         "FROM produtos p "
         "LEFT JOIN lotes l ON p.id = l.produto_id AND l.status = 'ativo' "
         "GROUP BY p.id ORDER BY p.id DESC;";
