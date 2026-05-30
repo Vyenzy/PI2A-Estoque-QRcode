@@ -9,12 +9,17 @@ int carregarProdutos(Produto *lista) {
     sqlite3 *db;
     if (sqlite3_open(DB_PATH, &db) != SQLITE_OK) return 0;
 
+    // Buscando agora também o código do lote (IFNULL evita erros se estiver vazio)
     const char *sql = 
-        "SELECT p.codigo, p.nome, p.qtd_atual, p.qtd_minima, "
-        "MIN(CAST(julianday(l.validade) - julianday(date('now', 'localtime')) AS INT)) as dias_restantes "
+        "SELECT p.codigo, p.nome, "
+        "IFNULL(l.quantidade, 0) as qtd_lote, "
+        "p.qtd_minima, "
+        "CAST(julianday(l.validade) - julianday(date('now', 'localtime')) AS INT) as dias_restantes, "
+        "p.qtd_atual, "
+        "IFNULL(l.codigo_lote, '-') as lote "
         "FROM produtos p "
         "LEFT JOIN lotes l ON p.id = l.produto_id AND l.status = 'ativo' AND l.quantidade > 0 "
-        "GROUP BY p.id ORDER BY p.id DESC;";
+        "ORDER BY p.id DESC, dias_restantes ASC;";
     
     sqlite3_stmt *stmt;
     int count = 0;
@@ -24,20 +29,22 @@ int carregarProdutos(Produto *lista) {
             strcpy(lista[count].codigo, (const char*)sqlite3_column_text(stmt, 0));
             strcpy(lista[count].nome, (const char*)sqlite3_column_text(stmt, 1));
             
-            int qtd_atual = sqlite3_column_int(stmt, 2);
+            int qtd_lote = sqlite3_column_int(stmt, 2);
             int qtd_minima = sqlite3_column_int(stmt, 3);
-            lista[count].quantidade = qtd_atual;
+            int qtd_total = sqlite3_column_int(stmt, 5); 
             
-            if (sqlite3_column_type(stmt, 4) == SQLITE_INTEGER) {
-                lista[count].dias_para_vencer = sqlite3_column_int(stmt, 4);
-            } else {
-                lista[count].dias_para_vencer = 999; 
-            }
+            strcpy(lista[count].codigo_lote, (const char*)sqlite3_column_text(stmt, 6)); // Salva o Lote
+            lista[count].quantidade = qtd_lote;
             
-            if (qtd_atual <= 0) strcpy(lista[count].status, "ESGOTADO");
+            if (sqlite3_column_type(stmt, 4) == SQLITE_INTEGER) lista[count].dias_para_vencer = sqlite3_column_int(stmt, 4);
+            else lista[count].dias_para_vencer = 999; 
+            
+            if (qtd_total == 0 || qtd_lote == 0) {
+                strcpy(lista[count].status, "ESGOTADO");
+                lista[count].quantidade = 0;
+            } 
             else if (lista[count].dias_para_vencer <= 0) strcpy(lista[count].status, "VENCIDO"); 
-            else if (lista[count].dias_para_vencer <= 14 || qtd_atual < qtd_minima) 
-                strcpy(lista[count].status, "ALERTA");
+            else if (lista[count].dias_para_vencer <= 14 || qtd_total < qtd_minima) strcpy(lista[count].status, "ALERTA");
             else strcpy(lista[count].status, "OK");
             
             count++;
@@ -48,20 +55,31 @@ int carregarProdutos(Produto *lista) {
     return count;
 }
 
-int carregarVendas(Venda *lista) {
+
+int carregarResumoDia(ResumoDia *lista) {
     sqlite3 *db;
     if (sqlite3_open(DB_PATH, &db) != SQLITE_OK) return 0;
 
-    const char *sql = "SELECT cliente_id, produto_nome, quantidade, time(data_hora) FROM vendas ORDER BY id DESC LIMIT 12;";
+    const char *sql = 
+        "SELECT p.nome, "
+        "IFNULL(SUM(CASE WHEN m.tipo = 'entrada' THEN m.quantidade ELSE 0 END), 0) as entradas, "
+        "IFNULL(SUM(CASE WHEN m.tipo = 'saida' THEN m.quantidade ELSE 0 END), 0) as saidas, "
+        "p.qtd_atual "
+        "FROM produtos p "
+        "LEFT JOIN movimentacoes m ON p.id = m.produto_id "
+        "GROUP BY p.id "
+        "HAVING entradas > 0 OR saidas > 0 OR p.qtd_atual > 0 "
+        "ORDER BY p.nome ASC;";
+        
     sqlite3_stmt *stmt;
     int count = 0;
     
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) == SQLITE_OK) {
-        while (sqlite3_step(stmt) == SQLITE_ROW && count < MAX_VENDAS) {
-            strcpy(lista[count].cliente_id, (const char*)sqlite3_column_text(stmt, 0));
-            strcpy(lista[count].produto_nome, (const char*)sqlite3_column_text(stmt, 1));
-            lista[count].quantidade = sqlite3_column_int(stmt, 2);
-            strcpy(lista[count].data_hora, (const char*)sqlite3_column_text(stmt, 3));
+        while (sqlite3_step(stmt) == SQLITE_ROW && count < MAX_PRODUTOS) {
+            strcpy(lista[count].produto_nome, (const char*)sqlite3_column_text(stmt, 0));
+            lista[count].entradas = sqlite3_column_int(stmt, 1);
+            lista[count].saidas = sqlite3_column_int(stmt, 2);
+            lista[count].saldo_total = sqlite3_column_int(stmt, 3);
             count++;
         }
     }
@@ -97,6 +115,12 @@ void simularEntradaQR(const char *nomeProduto, const char *codigoProduto, const 
     strftime(data_str, sizeof(data_str), "%Y-%m-%d", data_struct);
 
     snprintf(sql, sizeof(sql), "INSERT INTO lotes (produto_id, codigo_lote, quantidade, validade, status) VALUES (%d, '%s', %d, '%s', 'ativo');", produto_id, codigoLote, quantidade, data_str);
+    sqlite3_exec(db, sql, NULL, 0, NULL);
+    
+    int lote_id = (int)sqlite3_last_insert_rowid(db); // Pega o ID do lote gerado
+
+    // REGISTRA A ENTRADA NA MOVIMENTAÇÃO
+    snprintf(sql, sizeof(sql), "INSERT INTO movimentacoes (lote_id, produto_id, tipo, quantidade) VALUES (%d, %d, 'entrada', %d);", lote_id, produto_id, quantidade);
     sqlite3_exec(db, sql, NULL, 0, NULL);
 
     snprintf(sql, sizeof(sql), "UPDATE produtos SET qtd_atual = IFNULL((SELECT SUM(quantidade) FROM lotes WHERE produto_id = %d AND status = 'ativo'), 0) WHERE id = %d;", produto_id, produto_id);
@@ -138,6 +162,10 @@ void simularVendasDoDia() {
         snprintf(sql_update, sizeof(sql_update), "UPDATE produtos SET qtd_atual = qtd_atual - %d WHERE id = %d;", qtd_comprada, sorteados[i].prod_id);
         sqlite3_exec(db, sql_update, NULL, 0, NULL);
 
+        // REGISTRA A SAÍDA NA MOVIMENTAÇÃO E NA VENDA
+        snprintf(sql_update, sizeof(sql_update), "INSERT INTO movimentacoes (lote_id, produto_id, tipo, quantidade) VALUES (%d, %d, 'saida', %d);", sorteados[i].lote_id, sorteados[i].prod_id, qtd_comprada);
+        sqlite3_exec(db, sql_update, NULL, 0, NULL);
+
         char cliente_id[20];
         sprintf(cliente_id, "CLI-%04d", rand() % 9999);
         snprintf(sql_update, sizeof(sql_update), "INSERT INTO vendas (cliente_id, produto_nome, quantidade) VALUES ('%s', '%s', %d);", cliente_id, sorteados[i].nome, qtd_comprada);
@@ -149,6 +177,7 @@ void simularVendasDoDia() {
 void limparBancoDemo() {
     sqlite3 *db;
     if (sqlite3_open(DB_PATH, &db) == SQLITE_OK) {
+        sqlite3_exec(db, "DELETE FROM movimentacoes;", NULL, 0, NULL); // Apaga as movimentações
         sqlite3_exec(db, "DELETE FROM lotes WHERE codigo_lote LIKE 'LT-%';", NULL, 0, NULL);
         sqlite3_exec(db, "DELETE FROM produtos WHERE codigo LIKE 'PRD-%';", NULL, 0, NULL);
         sqlite3_exec(db, "DELETE FROM vendas;", NULL, 0, NULL); 

@@ -22,6 +22,7 @@ int main(void) {
     Color corTextoMenu = (Color){ 160, 174, 192, 255 }; 
     Color corDestaquePromo = (Color){ 220, 38, 38, 255 };
     Color corDescarte = (Color){ 128, 0, 32, 255 }; 
+    Color corEntrada = (Color){ 46, 204, 113, 255 }; // Verde Sucesso
 
     TelaAtiva telaAtual = TELA_VISAO_GERAL;
     Rectangle btnVisao = { 15, 120, 220, 45 };
@@ -55,9 +56,10 @@ int main(void) {
     };
 
     Produto produtos[MAX_PRODUTOS];
-    Venda vendas[MAX_VENDAS];
+    ResumoDia resumo[MAX_PRODUTOS]; // LISTA CONSOLIDADA ATUALIZADA
+    
     int totalProdutos = carregarProdutos(produtos);
-    int totalVendas = carregarVendas(vendas);
+    int totalResumo = carregarResumoDia(resumo); // CARREGA O BALANCETE
 
     while (!WindowShouldClose()) {
         
@@ -75,7 +77,7 @@ int main(void) {
             if (CheckCollisionPointRec(mousePoint, btnReset)) {
                 limparBancoDemo();
                 totalProdutos = carregarProdutos(produtos); 
-                totalVendas = carregarVendas(vendas);
+                totalResumo = carregarResumoDia(resumo); // ATUALIZA AQUI
                 paginaAtual = 0;
                 qrLido = false; 
             }
@@ -105,6 +107,7 @@ int main(void) {
                     
                     simularEntradaQR(ultimoLoteNome, codigoBase, ultimoLoteCodigo, ultimoLoteQtd, ultimoLoteDiasVencimento);
                     totalProdutos = carregarProdutos(produtos); 
+                    totalResumo = carregarResumoDia(resumo); // ATUALIZA AQUI
                     
                     qrLido = true;
                     tempoUltimoClique = GetTime(); 
@@ -115,7 +118,7 @@ int main(void) {
                 if (GetTime() - tempoUltimoClique > 0.5) {
                     simularVendasDoDia();
                     totalProdutos = carregarProdutos(produtos); 
-                    totalVendas = carregarVendas(vendas);       
+                    totalResumo = carregarResumoDia(resumo); // ATUALIZA AQUI
                     tempoUltimoClique = GetTime();
                 }
             }
@@ -142,7 +145,7 @@ int main(void) {
         DrawText("App do Cliente", 40, 315, 16, (telaAtual == TELA_CLIENTE) ? WHITE : corTextoMenu);
 
         DrawRectangleRec(btnRelatorio, (telaAtual == TELA_RELATORIO) ? corBotaoAtivo : corSidebar);
-        DrawText("Fechamento (Saidas)", 40, 375, 14, (telaAtual == TELA_RELATORIO) ? WHITE : corTextoMenu);
+        DrawText("Resumo do Dia", 40, 375, 14, (telaAtual == TELA_RELATORIO) ? WHITE : corTextoMenu);
 
         DrawRectangleRec(btnReset, (Color){ 192, 57, 43, 255 }); 
         DrawText("RESETAR DADOS (DEMO)", 38, 690, 14, WHITE);
@@ -158,11 +161,13 @@ int main(void) {
             DrawRectangle(290, 120, screenWidth - 330, 500, WHITE);
             DrawRectangleLines(290, 120, screenWidth - 330, 500, LIGHTGRAY);
             DrawRectangle(290, 120, screenWidth - 330, 40, (Color){ 237, 242, 249, 255 });
+            
             DrawText("CODIGO", 310, 132, 14, DARKGRAY);
-            DrawText("PRODUTO", 450, 132, 14, DARKGRAY);
-            DrawText("QTD", 680, 132, 14, DARKGRAY);
-            DrawText("VALIDADE", 780, 132, 14, DARKGRAY); 
-            DrawText("STATUS", 880, 132, 14, DARKGRAY);
+            DrawText("PRODUTO", 410, 132, 14, DARKGRAY);
+            DrawText("LOTE", 560, 132, 14, DARKGRAY);
+            DrawText("QTD", 670, 132, 14, DARKGRAY);
+            DrawText("VALIDADE", 760, 132, 14, DARKGRAY); 
+            DrawText("STATUS", 860, 132, 14, DARKGRAY);
 
             int indexInicio = paginaAtual * itensPorPagina;
             int indexFim = indexInicio + itensPorPagina;
@@ -174,23 +179,21 @@ int main(void) {
 
                 DrawLine(290, yPos - 15, screenWidth - 40, yPos - 15, LIGHTGRAY);
                 DrawText(produtos[i].codigo, 310, yPos, 14, GRAY);
-                DrawText(produtos[i].nome, 450, yPos, 14, GRAY);
+                DrawText(produtos[i].nome, 410, yPos, 14, GRAY);
+                DrawText(produtos[i].codigo_lote, 560, yPos, 14, GRAY);
                 
                 char qtdStr[10];
                 sprintf(qtdStr, "%d un.", produtos[i].quantidade);
-                DrawText(qtdStr, 680, yPos, 14, GRAY);
+                DrawText(qtdStr, 670, yPos, 14, GRAY);
                 
                 char validadeStr[30];
-                if (produtos[i].dias_para_vencer < 999) {
-                    sprintf(validadeStr, "%d dias", produtos[i].dias_para_vencer);
-                } else {
-                    strcpy(validadeStr, "-");
-                }
+                if (produtos[i].dias_para_vencer < 999) sprintf(validadeStr, "%d dias", produtos[i].dias_para_vencer);
+                else strcpy(validadeStr, "-");
                 
                 Color corData = GRAY;
                 if (produtos[i].dias_para_vencer <= 0) corData = corDescarte;
                 else if (produtos[i].dias_para_vencer <= 14) corData = RED;
-                DrawText(validadeStr, 780, yPos, 14, corData);
+                DrawText(validadeStr, 760, yPos, 14, corData);
                 
                 Color corStatus = GRAY;
                 if (strcmp(produtos[i].status, "VENCIDO") == 0) corStatus = corDescarte;
@@ -198,7 +201,7 @@ int main(void) {
                 else if (strcmp(produtos[i].status, "ALERTA") == 0) corStatus = ORANGE;
                 else if (strcmp(produtos[i].status, "OK") == 0) corStatus = LIME;
                 
-                DrawText(produtos[i].status, 880, yPos, 14, corStatus);
+                DrawText(produtos[i].status, 860, yPos, 14, corStatus);
             }
 
             if (paginaAtual > 0) {
@@ -210,7 +213,7 @@ int main(void) {
                 DrawText("Proxima >>", 440, 650, 14, WHITE);
             }
             char pagText[50];
-            sprintf(pagText, "Pagina %d de %d (Total: %d itens)", paginaAtual + 1, maxPaginas + 1, totalProdutos);
+            sprintf(pagText, "Pagina %d de %d (Total: %d lotes)", paginaAtual + 1, maxPaginas + 1, totalProdutos);
             DrawText(pagText, 700, 650, 14, GRAY);
         } 
         
@@ -221,7 +224,7 @@ int main(void) {
             DrawRectangleLines(290, 120, 250, 200, LIGHTGRAY);
             DrawText("[ AREA DE SCAN QR ]", 330, 210, 16, LIGHTGRAY);
             
-            DrawRectangleRec(btnQR, qrLido ? (Color){46, 204, 113, 255} : corBotaoAtivo);
+            DrawRectangleRec(btnQR, qrLido ? corEntrada : corBotaoAtivo);
             DrawText(qrLido ? "LER PROXIMO LOTE" : "SIMULAR LEITURA QR", 335, 376, 16, WHITE);
 
             if (qrLido) {
@@ -358,9 +361,9 @@ int main(void) {
             if (qtCards == 0) DrawText("Nenhuma oferta no momento. Volte mais tarde!", 290, 150, 16, GRAY);
         }
 
-        // --- RELATÓRIO DO DIA ---
+        // --- RELATÓRIO DO DIA (BALANCETE CONSOLIDADO) ---
         else if (telaAtual == TELA_RELATORIO) {
-            DrawText("Fechamento de Caixa (Saidas do Estoque)", 290, 30, 24, DARKGRAY);
+            DrawText("Fechamento de Caixa: Balancete Consolidado", 290, 30, 24, DARKGRAY);
             
             DrawRectangleRec(btnSimularVenda, corBotaoAtivo);
             DrawText("SIMULAR VENDAS (BAIXAR ESTOQUE)", 300, 132, 14, WHITE);
@@ -369,28 +372,34 @@ int main(void) {
             DrawRectangleLines(290, 180, screenWidth - 330, 520, LIGHTGRAY);
             DrawRectangle(290, 180, screenWidth - 330, 40, (Color){ 237, 242, 249, 255 });
             
-            DrawText("HORARIO", 310, 192, 14, DARKGRAY);
-            DrawText("ID DO CLIENTE", 410, 192, 14, DARKGRAY);
-            DrawText("PRODUTO COMPRADO", 550, 192, 14, DARKGRAY);
-            DrawText("QTD", 850, 192, 14, DARKGRAY);
+            DrawText("PRODUTO", 310, 192, 14, DARKGRAY);
+            DrawText("CHEGARAM (+)", 550, 192, 14, DARKGRAY);
+            DrawText("VENDIDOS (-)", 700, 192, 14, DARKGRAY);
+            DrawText("ESTOQUE TOTAL", 850, 192, 14, DARKGRAY);
 
-            for (int i = 0; i < totalVendas; i++) {
+            for (int i = 0; i < totalResumo; i++) {
                 int yPos = 240 + (i * 40); 
                 if (yPos > 680) break;
 
                 DrawLine(290, yPos - 10, screenWidth - 40, yPos - 10, LIGHTGRAY);
                 
-                DrawText(vendas[i].data_hora, 310, yPos, 14, GRAY);
-                DrawText(vendas[i].cliente_id, 410, yPos, 14, (Color){44, 123, 229, 255}); 
-                DrawText(vendas[i].produto_nome, 550, yPos, 14, DARKGRAY);
+                DrawText(resumo[i].produto_nome, 310, yPos, 14, DARKGRAY);
                 
-                char qtdStr[10];
-                sprintf(qtdStr, "-%d un.", vendas[i].quantidade);
-                DrawText(qtdStr, 850, yPos, 14, RED); 
+                char entStr[20];
+                sprintf(entStr, "+%d un.", resumo[i].entradas);
+                DrawText(entStr, 550, yPos, 14, (resumo[i].entradas > 0) ? corEntrada : LIGHTGRAY);
+                
+                char saiStr[20];
+                sprintf(saiStr, "-%d un.", resumo[i].saidas);
+                DrawText(saiStr, 700, yPos, 14, (resumo[i].saidas > 0) ? RED : LIGHTGRAY);
+                
+                char totalStr[20];
+                sprintf(totalStr, "%d un.", resumo[i].saldo_total);
+                DrawText(totalStr, 850, yPos, 14, (resumo[i].saldo_total <= 0) ? RED : DARKGRAY);
             }
 
-            if (totalVendas == 0) {
-                DrawText("Nenhuma venda registrada hoje. Clique em 'Simular Vendas'!", 310, 240, 14, GRAY);
+            if (totalResumo == 0) {
+                DrawText("Nenhuma movimentacao ou produto registrado ainda.", 310, 240, 14, GRAY);
             }
         }
 

@@ -2,28 +2,25 @@
 #define ESTOQUE_DB_H
 
 #define MAX_PRODUTOS 500
-#define MAX_VENDAS 100
 #define DB_PATH "dados/banco_estoque.db"
-
-typedef struct 
-{
+typedef struct {
     char codigo[20];
     char nome[50];
+    char codigo_lote[30]; 
     int quantidade;
     char status[20];
     int dias_para_vencer; 
 } Produto;
 
-typedef struct 
-{
-    char cliente_id[20];
+typedef struct {
     char produto_nome[50];
-    int quantidade;
-    char data_hora[30];
-} Venda;
+    int entradas;      
+    int saidas;        
+    int saldo_total;   
+} ResumoDia;
 
 int carregarProdutos(Produto *lista);
-int carregarVendas(Venda *lista);
+int carregarResumoDia(ResumoDia *lista); 
 void simularEntradaQR(const char *nomeProduto, const char *codigoProduto, const char *codigoLote, int quantidade, int diasValidade);
 void simularVendasDoDia();
 void limparBancoDemo();
