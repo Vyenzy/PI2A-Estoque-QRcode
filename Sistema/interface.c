@@ -19,7 +19,7 @@ typedef enum
 typedef struct
 {
     char nome[50];
-    char codigo_lote[30]; // Necessário para debitar no banco
+    char codigo_lote[30]; 
     int quantidade;
 } ItemCarrinho;
 
@@ -35,7 +35,7 @@ int main(void)
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(1024, 768, "Dual-System: Gestao de Estoque Inteligente");
     SetWindowMinSize(1024, 768);
-    SetTargetFPS(60);
+    SetTargetFPS(240);
     srand(time(NULL)); 
 
     Font fontePrincipal = LoadFontEx("fonte.ttf", 32, 0, 250);
@@ -44,21 +44,15 @@ int main(void)
         fontePrincipal = GetFontDefault();
     }
 
-    // --- PALETA DE CORES ---
-    Color corFundo = (Color){ 245, 247, 250, 255 }; 
-    Color corSidebar = (Color){ 26, 32, 44, 255 };  
-    Color corBotaoAtivo = (Color){ 49, 130, 206, 255 }; 
-    Color corTextoMenu = (Color){ 160, 174, 192, 255 }; 
-    Color corDestaquePromo = (Color){ 220, 38, 38, 255 };
-    Color corDescarte = (Color){ 153, 27, 27, 255 }; 
-    Color corEntrada = (Color){ 16, 185, 129, 255 }; 
-
     // --- VARIÁVEIS DE ESTADO ---
     TelaAtiva telaAtual = TELA_VISAO_GERAL;
     bool qrLido = false;
     double tempoUltimoClique = 0; 
     int paginaAtual = 0;
     int itensPorPagina = 9; 
+    
+    // NOVO: Toggle de Dark Mode (Começa no Dark Mode para impressionar!)
+    bool isDarkMode = true; 
 
     // Variáveis do Leitor Físico
     char bufferLeitor[256] = "\0";
@@ -95,11 +89,31 @@ int main(void)
         int sh = GetScreenHeight();
         Vector2 mousePoint = GetMousePosition();
         
+        // --- PALETA DE CORES DINÂMICA (Baseada no Tema) ---
+        Color corFundo = isDarkMode ? (Color){ 15, 23, 42, 255 } : (Color){ 245, 247, 250, 255 }; 
+        Color corSidebar = isDarkMode ? (Color){ 9, 9, 11, 255 } : (Color){ 26, 32, 44, 255 };  
+        Color corBotaoAtivo = isDarkMode ? (Color){ 14, 165, 233, 255 } : (Color){ 49, 130, 206, 255 }; 
+        Color corTextoMenu = isDarkMode ? (Color){ 148, 163, 184, 255 } : (Color){ 160, 174, 192, 255 }; 
+        Color corDestaquePromo = (Color){ 220, 38, 38, 255 };
+        Color corDescarte = (Color){ 153, 27, 27, 255 }; 
+        Color corEntrada = isDarkMode ? (Color){ 52, 211, 153, 255 } : (Color){ 16, 185, 129, 255 }; 
+        
+        Color corCardBg = isDarkMode ? (Color){ 30, 41, 59, 255 } : WHITE;
+        Color corBorda = isDarkMode ? (Color){ 51, 65, 85, 255 } : LIGHTGRAY;
+        Color corTextoPri = isDarkMode ? (Color){ 241, 245, 249, 255 } : DARKGRAY; 
+        Color corTextoSec = isDarkMode ? (Color){ 148, 163, 184, 255 } : GRAY; 
+        Color corCabecalhoLista = isDarkMode ? (Color){ 15, 23, 42, 255 } : (Color){ 237, 242, 249, 255 };
+        Color corVitrineBg = isDarkMode ? (Color){ 69, 10, 10, 255 } : (Color){ 254, 242, 242, 255 };
+        Color corVitrineCabecalho = isDarkMode ? (Color){ 127, 29, 29, 255 } : (Color){ 254, 226, 226, 255 };
+
+        // --- RETÂNGULOS DE INTERFACE ---
         Rectangle btnVisao = { 15, 130, 220, 40 };
         Rectangle btnEntrada = { 15, 180, 220, 40 };
         Rectangle btnVitrine = { 15, 230, 220, 40 };
         Rectangle btnRelatorio = { 15, 280, 220, 40 }; 
         Rectangle btnCliente = { 15, 380, 220, 40 }; 
+        
+        Rectangle btnTema = { 15, sh - 110, 220, 40 }; // Botão de Tema
         Rectangle btnReset = { 15, sh - 60, 220, 40 }; 
 
         Rectangle btnQR = { 290, 360, 270, 45 }; 
@@ -108,14 +122,8 @@ int main(void)
         Rectangle btnProx = { 420, sh - 60, 110, 35 };
 
         int maxPaginas = 0;
-        if (telaAtual == TELA_VISAO_GERAL) 
-        {
-            maxPaginas = (totalProdutos > 0) ? (totalProdutos - 1) / itensPorPagina : 0;
-        }
-        else if (telaAtual == TELA_RELATORIO) 
-        {
-            maxPaginas = (totalResumo > 0) ? (totalResumo - 1) / 10 : 0;
-        }
+        if (telaAtual == TELA_VISAO_GERAL) maxPaginas = (totalProdutos > 0) ? (totalProdutos - 1) / itensPorPagina : 0;
+        else if (telaAtual == TELA_RELATORIO) maxPaginas = (totalResumo > 0) ? (totalResumo - 1) / 10 : 0;
         
         // --- EVENTOS E CLICKS ---
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
@@ -129,7 +137,11 @@ int main(void)
             { 
                 telaAtual = TELA_CLIENTE; 
                 paginaAtual = 0; 
-                // REMOVIDO o reset do carrinho aqui! O carrinho persiste!
+            }
+
+            if (CheckCollisionPointRec(mousePoint, btnTema))
+            {
+                isDarkMode = !isDarkMode; // Alterna o tema
             }
 
             if (CheckCollisionPointRec(mousePoint, btnReset))
@@ -230,14 +242,14 @@ int main(void)
         BeginDrawing();
         ClearBackground(corFundo);
 
-        DrawRectangle(250, 0, sw - 250, 80, WHITE);
-        DrawLine(250, 80, sw, 80, LIGHTGRAY);
+        DrawRectangle(250, 0, sw - 250, 80, corCardBg);
+        DrawLine(250, 80, sw, 80, corBorda);
 
         DrawRectangle(0, 0, 250, sh, corSidebar);
         DrawTextUI(fontePrincipal, "DUAL-SYSTEM", 35, 30, 24, WHITE);
-        DrawTextUI(fontePrincipal, "v1.0 - ERP & PDV", 35, 60, 12, corTextoMenu);
+        DrawTextUI(fontePrincipal, "v1.1 - ERP & PDV", 35, 60, 12, corTextoMenu);
 
-        DrawTextUI(fontePrincipal, "GESTAO E OPERACAO", 20, 105, 12, GRAY);
+        DrawTextUI(fontePrincipal, "GESTAO E OPERACAO", 20, 105, 12, corTextoSec);
         
         DrawRectangleRec(btnVisao, (telaAtual == TELA_VISAO_GERAL) ? corBotaoAtivo : corSidebar);
         DrawTextUI(fontePrincipal, "Visao Geral", 40, 142, 14, (telaAtual == TELA_VISAO_GERAL) ? WHITE : corTextoMenu);
@@ -251,11 +263,16 @@ int main(void)
         DrawRectangleRec(btnRelatorio, (telaAtual == TELA_RELATORIO) ? corBotaoAtivo : corSidebar);
         DrawTextUI(fontePrincipal, "Resumo do Dia", 40, 292, 14, (telaAtual == TELA_RELATORIO) ? WHITE : corTextoMenu);
 
-        DrawLine(20, 345, 230, 345, Fade(LIGHTGRAY, 0.2f));
-        DrawTextUI(fontePrincipal, "CONSUMIDOR FINAL", 20, 355, 12, GRAY);
+        DrawLine(20, 345, 230, 345, Fade(corBorda, 0.4f));
+        DrawTextUI(fontePrincipal, "CONSUMIDOR FINAL", 20, 355, 12, corTextoSec);
 
         DrawRectangleRec(btnCliente, (telaAtual == TELA_CLIENTE) ? corBotaoAtivo : corSidebar);
         DrawTextUI(fontePrincipal, "App do Cliente", 40, 392, 14, (telaAtual == TELA_CLIENTE) ? WHITE : corTextoMenu);
+
+        // Botão de Tema
+        DrawRectangleRec(btnTema, corSidebar);
+        DrawRectangleLines(btnTema.x, btnTema.y, btnTema.width, btnTema.height, corBorda);
+        DrawTextUI(fontePrincipal, isDarkMode ? "[ TEMA CLARO ]" : "[ TEMA ESCURO ]", 55, sh - 98, 14, corTextoMenu);
 
         DrawRectangleRec(btnReset, corDescarte); 
         DrawTextUI(fontePrincipal, "RESETAR BANCO", 55, sh - 48, 14, WHITE);
@@ -265,18 +282,18 @@ int main(void)
 
         if (telaAtual == TELA_VISAO_GERAL)
         {
-            DrawTextUI(fontePrincipal, "Visao Geral do Estoque", 290, 30, 24, DARKGRAY);
+            DrawTextUI(fontePrincipal, "Visao Geral do Estoque", 290, 30, 24, corTextoPri);
             
-            DrawRectangleRec(bgCard, WHITE);
-            DrawRectangleLines(bgCard.x, bgCard.y, bgCard.width, bgCard.height, LIGHTGRAY);
-            DrawRectangle(290, 120, sw - 330, 40, (Color){ 237, 242, 249, 255 });
+            DrawRectangleRec(bgCard, corCardBg);
+            DrawRectangleLines(bgCard.x, bgCard.y, bgCard.width, bgCard.height, corBorda);
+            DrawRectangle(290, 120, sw - 330, 40, corCabecalhoLista);
             
-            DrawTextUI(fontePrincipal, "CODIGO", 310, 132, 14, DARKGRAY);
-            DrawTextUI(fontePrincipal, "PRODUTO", 410, 132, 14, DARKGRAY);
-            DrawTextUI(fontePrincipal, "LOTE", 610, 132, 14, DARKGRAY); 
-            DrawTextUI(fontePrincipal, "QTD", 700, 132, 14, DARKGRAY);
-            DrawTextUI(fontePrincipal, "VALIDADE", 780, 132, 14, DARKGRAY); 
-            DrawTextUI(fontePrincipal, "STATUS", 880, 132, 14, DARKGRAY);
+            DrawTextUI(fontePrincipal, "CODIGO", 310, 132, 14, corTextoPri);
+            DrawTextUI(fontePrincipal, "PRODUTO", 410, 132, 14, corTextoPri);
+            DrawTextUI(fontePrincipal, "LOTE", 610, 132, 14, corTextoPri); 
+            DrawTextUI(fontePrincipal, "QTD", 700, 132, 14, corTextoPri);
+            DrawTextUI(fontePrincipal, "VALIDADE", 780, 132, 14, corTextoPri); 
+            DrawTextUI(fontePrincipal, "STATUS", 880, 132, 14, corTextoPri);
 
             int indexFim = (paginaAtual * itensPorPagina) + itensPorPagina;
             if (indexFim > totalProdutos) indexFim = totalProdutos;
@@ -284,23 +301,23 @@ int main(void)
             for (int i = paginaAtual * itensPorPagina; i < indexFim; i++)
             {
                 int yPos = 180 + ((i % itensPorPagina) * 45); 
-                DrawLine(290, yPos - 15, sw - 40, yPos - 15, Fade(LIGHTGRAY, 0.5f));
+                DrawLine(290, yPos - 15, sw - 40, yPos - 15, Fade(corBorda, 0.5f));
                 
-                DrawTextUI(fontePrincipal, produtos[i].codigo, 310, yPos, 14, GRAY);
-                DrawTextUI(fontePrincipal, produtos[i].nome, 410, yPos, 14, GRAY);
-                DrawTextUI(fontePrincipal, produtos[i].codigo_lote, 610, yPos, 14, GRAY); 
+                DrawTextUI(fontePrincipal, produtos[i].codigo, 310, yPos, 14, corTextoSec);
+                DrawTextUI(fontePrincipal, produtos[i].nome, 410, yPos, 14, corTextoSec);
+                DrawTextUI(fontePrincipal, produtos[i].codigo_lote, 610, yPos, 14, corTextoSec); 
                 
                 char str[30];
                 sprintf(str, "%d un.", produtos[i].quantidade);
-                DrawTextUI(fontePrincipal, str, 700, yPos, 14, GRAY);
+                DrawTextUI(fontePrincipal, str, 700, yPos, 14, corTextoSec);
                 
                 if (produtos[i].dias_para_vencer < 999) sprintf(str, "%d dias", produtos[i].dias_para_vencer);
                 else strcpy(str, "-");
                 
-                Color cData = (produtos[i].dias_para_vencer <= 0) ? corDescarte : (produtos[i].dias_para_vencer <= 14) ? RED : GRAY;
+                Color cData = (produtos[i].dias_para_vencer <= 0) ? corDescarte : (produtos[i].dias_para_vencer <= 14) ? RED : corTextoSec;
                 DrawTextUI(fontePrincipal, str, 780, yPos, 14, cData);
                 
-                Color cStatus = LIME;
+                Color cStatus = corEntrada;
                 if (strcmp(produtos[i].status, "VENCIDO") == 0) cStatus = corDescarte;
                 else if (strcmp(produtos[i].status, "ESGOTADO") == 0) cStatus = RED;
                 else if (strcmp(produtos[i].status, "ALERTA") == 0) cStatus = ORANGE;
@@ -313,16 +330,16 @@ int main(void)
             
             char pagText[50]; 
             sprintf(pagText, "Pagina %d de %d (Total: %d lotes)", paginaAtual + 1, maxPaginas + 1, totalProdutos);
-            DrawTextUI(fontePrincipal, pagText, 700, sh - 50, 14, GRAY);
+            DrawTextUI(fontePrincipal, pagText, 700, sh - 50, 14, corTextoSec);
         } 
         
         else if (telaAtual == TELA_ENTRADA_LOTE)
         {
-            DrawTextUI(fontePrincipal, "Entrada de Mercadoria", 290, 30, 24, DARKGRAY);
+            DrawTextUI(fontePrincipal, "Entrada de Mercadoria", 290, 30, 24, corTextoPri);
             
             Rectangle scanArea = { 290, 120, 270, 200 };
-            DrawRectangleLines(scanArea.x, scanArea.y, scanArea.width, scanArea.height, LIGHTGRAY);
-            DrawTextUI(fontePrincipal, "[ AREA DE SCAN QR ]", 330, 210, 14, LIGHTGRAY);
+            DrawRectangleLines(scanArea.x, scanArea.y, scanArea.width, scanArea.height, corBorda);
+            DrawTextUI(fontePrincipal, "[ AREA DE SCAN QR ]", 330, 210, 14, corTextoSec);
             
             DrawRectangleRec(btnQR, qrLido ? corEntrada : corBotaoAtivo);
             DrawTextUI(fontePrincipal, qrLido ? "LER PROXIMO LOTE" : "SIMULAR LEITURA QR", 335, 372, 14, WHITE);
@@ -331,17 +348,17 @@ int main(void)
             {
                 DrawTextUI(fontePrincipal, "SUCESSO! Gravado no Banco de Dados:", 580, 120, 16, corEntrada);
                 Rectangle cardSucesso = { 580, 150, 400, 180 };
-                DrawRectangleRec(cardSucesso, WHITE);
-                DrawRectangleLines(cardSucesso.x, cardSucesso.y, cardSucesso.width, cardSucesso.height, LIGHTGRAY);
+                DrawRectangleRec(cardSucesso, corCardBg);
+                DrawRectangleLines(cardSucesso.x, cardSucesso.y, cardSucesso.width, cardSucesso.height, corBorda);
                 
                 char str[100];
-                sprintf(str, "Produto: %s", ultimoLoteNome); DrawTextUI(fontePrincipal, str, 600, 170, 14, DARKGRAY);
-                sprintf(str, "Codigo do Lote: %s", ultimoLoteCodigo); DrawTextUI(fontePrincipal, str, 600, 200, 14, DARKGRAY);
-                sprintf(str, "Quantidade Lida: %d un.", ultimoLoteQtd); DrawTextUI(fontePrincipal, str, 600, 230, 14, DARKGRAY);
+                sprintf(str, "Produto: %s", ultimoLoteNome); DrawTextUI(fontePrincipal, str, 600, 170, 14, corTextoPri);
+                sprintf(str, "Codigo do Lote: %s", ultimoLoteCodigo); DrawTextUI(fontePrincipal, str, 600, 200, 14, corTextoPri);
+                sprintf(str, "Quantidade Lida: %d un.", ultimoLoteQtd); DrawTextUI(fontePrincipal, str, 600, 230, 14, corTextoPri);
                 
                 if (ultimoLoteDiasVencimento <= 0) sprintf(str, "Validade: VENCIDO HOJE!");
                 else sprintf(str, "Validade: Em %d dias", ultimoLoteDiasVencimento);
-                DrawTextUI(fontePrincipal, str, 600, 270, 14, (ultimoLoteDiasVencimento <= 14) ? RED : LIME);
+                DrawTextUI(fontePrincipal, str, 600, 270, 14, (ultimoLoteDiasVencimento <= 14) ? RED : corEntrada);
             }
         } 
         
@@ -349,15 +366,15 @@ int main(void)
         {
             DrawTextUI(fontePrincipal, "Painel do Gerente: Vitrine de Alertas", 290, 30, 24, corDescarte);
             
-            DrawRectangleRec(bgCard, (Color){ 254, 242, 242, 255 }); 
+            DrawRectangleRec(bgCard, corVitrineBg); 
             DrawRectangleLines(bgCard.x, bgCard.y, bgCard.width, bgCard.height, RED);
-            DrawRectangle(290, 120, sw - 330, 40, (Color){ 254, 226, 226, 255 });
+            DrawRectangle(290, 120, sw - 330, 40, corVitrineCabecalho);
             
-            DrawTextUI(fontePrincipal, "CODIGO", 310, 132, 14, DARKGRAY);
-            DrawTextUI(fontePrincipal, "PRODUTO EM RISCO", 450, 132, 14, DARKGRAY);
-            DrawTextUI(fontePrincipal, "QTD", 670, 132, 14, DARKGRAY);
-            DrawTextUI(fontePrincipal, "VALIDADE", 750, 132, 14, DARKGRAY); 
-            DrawTextUI(fontePrincipal, "ACAO", 860, 132, 14, DARKGRAY);
+            DrawTextUI(fontePrincipal, "CODIGO", 310, 132, 14, corTextoPri);
+            DrawTextUI(fontePrincipal, "PRODUTO EM RISCO", 450, 132, 14, corTextoPri);
+            DrawTextUI(fontePrincipal, "QTD", 670, 132, 14, corTextoPri);
+            DrawTextUI(fontePrincipal, "VALIDADE", 750, 132, 14, corTextoPri); 
+            DrawTextUI(fontePrincipal, "ACAO", 860, 132, 14, corTextoPri);
             
             int vCount = 0;
             const char* prios[] = {"VENCIDO", "ESGOTADO", "ALERTA"};
@@ -376,8 +393,8 @@ int main(void)
                             if (yPos > sh - 100) break; 
                             
                             DrawLine(290, yPos - 15, sw - 40, yPos - 15, Fade(RED, 0.3f));
-                            DrawTextUI(fontePrincipal, produtos[i].codigo, 310, yPos, 14, DARKGRAY);
-                            DrawTextUI(fontePrincipal, produtos[i].nome, 450, yPos, 14, DARKGRAY);
+                            DrawTextUI(fontePrincipal, produtos[i].codigo, 310, yPos, 14, corTextoPri);
+                            DrawTextUI(fontePrincipal, produtos[i].nome, 450, yPos, 14, corTextoPri);
                             
                             char str[30]; 
                             sprintf(str, "%d", produtos[i].quantidade); 
@@ -387,7 +404,7 @@ int main(void)
                             else strcpy(str, "-");
                             
                             if (p == 0) { DrawTextUI(fontePrincipal, str, 750, yPos, 14, corDescarte); DrawTextUI(fontePrincipal, "DESCARTAR", 860, yPos, 14, corDescarte); }
-                            else if (p == 1) { DrawTextUI(fontePrincipal, str, 750, yPos, 14, GRAY); DrawTextUI(fontePrincipal, "REPOR", 860, yPos, 14, RED); }
+                            else if (p == 1) { DrawTextUI(fontePrincipal, str, 750, yPos, 14, corTextoSec); DrawTextUI(fontePrincipal, "REPOR", 860, yPos, 14, RED); }
                             else { DrawTextUI(fontePrincipal, str, 750, yPos, 14, RED); DrawTextUI(fontePrincipal, "APP / PROMO", 860, yPos, 14, ORANGE); }
                             vCount++;
                         }
@@ -400,7 +417,7 @@ int main(void)
         else if (telaAtual == TELA_CLIENTE)
         {
             DrawTextUI(fontePrincipal, "App do Consumidor - Loja e Promocoes", 290, 30, 24, corDestaquePromo);
-            DrawTextUI(fontePrincipal, "Aproveite para comprar! Estoque proximo ao vencimento.", 290, 65, 14, GRAY);
+            DrawTextUI(fontePrincipal, "Aproveite para comprar! Estoque proximo ao vencimento.", 290, 65, 14, corTextoSec);
             
             // --- ÁREA ESQUERDA: OFERTAS ---
             int qtCards = 0, lim[] = {2, 6, 10, 14}, prev = 0;
@@ -415,22 +432,21 @@ int main(void)
                         if (row >= 3) break; 
                         
                         Rectangle cRec = { 280 + (col * 240), 120 + (row * 155), 220, 145 };
-                        DrawRectangleRec(cRec, WHITE);
-                        DrawRectangleLines(cRec.x, cRec.y, cRec.width, cRec.height, LIGHTGRAY);
+                        DrawRectangleRec(cRec, corCardBg);
+                        DrawRectangleLines(cRec.x, cRec.y, cRec.width, cRec.height, corBorda);
                         
                         Rectangle cHead = { cRec.x, cRec.y, cRec.width, 30 };
                         DrawRectangle(cHead.x, cHead.y, cHead.width, cHead.height, corDestaquePromo); 
                         DrawTextUI(fontePrincipal, "OFERTA DO DIA", cRec.x + 50, cRec.y + 8, 14, WHITE);
-                        DrawTextUI(fontePrincipal, produtos[i].nome, cRec.x + 15, cRec.y + 40, 14, DARKGRAY);
+                        DrawTextUI(fontePrincipal, produtos[i].nome, cRec.x + 15, cRec.y + 40, 14, corTextoPri);
 
                         char str[20];
                         sprintf(str, "%d%% OFF!", (f==0)?80:(f==1)?60:(f==2)?40:20);
                         DrawTextUI(fontePrincipal, str, cRec.x + 15, cRec.y + 60, 24, RED);
 
-                        // NOVO: Mostra o Estoque Disponível
                         char qtdStrPromo[30];
                         sprintf(qtdStrPromo, "Estoque: %d un.", produtos[i].quantidade);
-                        DrawTextUI(fontePrincipal, qtdStrPromo, cRec.x + 15, cRec.y + 85, 12, GRAY);
+                        DrawTextUI(fontePrincipal, qtdStrPromo, cRec.x + 15, cRec.y + 85, 12, corTextoSec);
                         
                         Rectangle btnAdd = { cRec.x + 15, cRec.y + 105, 190, 30 };
                         DrawRectangleRec(btnAdd, corEntrada);
@@ -440,7 +456,6 @@ int main(void)
                         {
                             if (GetTime() - tempoUltimoClique > 0.1)
                             {
-                                // Verifica quantos desse item já estão no carrinho
                                 int qtdNoCarrinho = 0;
                                 for (int c = 0; c < totalItensCarrinho; c++)
                                 {
@@ -451,7 +466,6 @@ int main(void)
                                     }
                                 }
 
-                                // Só adiciona se o carrinho tiver menos que o estoque real
                                 if (qtdNoCarrinho < produtos[i].quantidade)
                                 {
                                     bool achou = false;
@@ -481,12 +495,12 @@ int main(void)
                 }
                 prev = lim[f]; 
             }
-            if (qtCards == 0) DrawTextUI(fontePrincipal, "Nenhuma oferta no momento.", 290, 150, 16, GRAY);
+            if (qtCards == 0) DrawTextUI(fontePrincipal, "Nenhuma oferta no momento.", 290, 150, 16, corTextoSec);
 
             // --- ÁREA DIREITA: CARRINHO E CHECKOUT ---
             Rectangle rectCarrinho = { sw - 260, 120, 240, sh - 150 };
-            DrawRectangleRec(rectCarrinho, WHITE);
-            DrawRectangleLines(rectCarrinho.x, rectCarrinho.y, rectCarrinho.width, rectCarrinho.height, LIGHTGRAY);
+            DrawRectangleRec(rectCarrinho, corCardBg);
+            DrawRectangleLines(rectCarrinho.x, rectCarrinho.y, rectCarrinho.width, rectCarrinho.height, corBorda);
             
             Rectangle headCarrinho = { rectCarrinho.x, rectCarrinho.y, rectCarrinho.width, 40 };
             DrawRectangle(headCarrinho.x, headCarrinho.y, headCarrinho.width, headCarrinho.height, corBotaoAtivo);
@@ -494,31 +508,28 @@ int main(void)
 
             if (totalItensCarrinho == 0)
             {
-                DrawTextUI(fontePrincipal, "Carrinho vazio.", rectCarrinho.x + 60, rectCarrinho.y + 70, 14, GRAY);
+                DrawTextUI(fontePrincipal, "Carrinho vazio.", rectCarrinho.x + 60, rectCarrinho.y + 70, 14, corTextoSec);
             }
             else
             {
-                // Desenha a lista de itens do carrinho
                 for (int c = 0; c < totalItensCarrinho; c++)
                 {
                     int itemY = rectCarrinho.y + 60 + (c * 40);
                     if (itemY > sh - 150) break; 
                     
-                    DrawTextUI(fontePrincipal, carrinho[c].nome, rectCarrinho.x + 15, itemY, 12, DARKGRAY);
+                    DrawTextUI(fontePrincipal, carrinho[c].nome, rectCarrinho.x + 15, itemY, 12, corTextoPri);
                     
                     char qtdStr[10];
                     sprintf(qtdStr, "x%d", carrinho[c].quantidade);
                     DrawTextUI(fontePrincipal, qtdStr, rectCarrinho.x + 200, itemY, 14, corBotaoAtivo);
                     
-                    DrawLine(rectCarrinho.x + 10, itemY + 25, rectCarrinho.x + rectCarrinho.width - 10, itemY + 25, Fade(LIGHTGRAY, 0.5f));
+                    DrawLine(rectCarrinho.x + 10, itemY + 25, rectCarrinho.x + rectCarrinho.width - 10, itemY + 25, Fade(corBorda, 0.5f));
                 }
 
-                // Botão de Finalizar Compra
                 Rectangle btnFinalizar = { rectCarrinho.x + 20, rectCarrinho.y + rectCarrinho.height - 50, rectCarrinho.width - 40, 35 };
                 DrawRectangleRec(btnFinalizar, corDescarte);
                 DrawTextUI(fontePrincipal, "FINALIZAR COMPRA", btnFinalizar.x + 35, btnFinalizar.y + 10, 12, WHITE);
 
-                // Lógica de Checkout no Banco de Dados
                 if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mousePoint, btnFinalizar))
                 {
                     if (GetTime() - tempoUltimoClique > 0.5)
@@ -532,7 +543,7 @@ int main(void)
                         }
                         totalProdutos = carregarProdutos(produtos);
                         totalResumo = carregarResumoDia(resumo);
-                        totalItensCarrinho = 0; // Esvazia o carrinho pós compra
+                        totalItensCarrinho = 0; 
                         
                         compraRealizada = true;
                         tempoMsgCompra = GetTime();
@@ -541,7 +552,6 @@ int main(void)
                 }
             }
 
-            // Mensagem Verde de Sucesso
             if (compraRealizada)
             {
                 if (GetTime() - tempoMsgCompra < 3.0) 
@@ -557,22 +567,20 @@ int main(void)
 
         else if (telaAtual == TELA_RELATORIO)
         {
-            DrawTextUI(fontePrincipal, "Fechamento: Balancete Consolidado", 290, 30, 24, DARKGRAY);
+            DrawTextUI(fontePrincipal, "Fechamento: Balancete Consolidado", 290, 30, 24, corTextoPri);
             
-            // CORREÇÃO: O Cartão Branco é desenhado primeiro (e um pouco mais pra baixo)
             Rectangle bgRelatorio = { 290, 180, sw - 330, sh - 280 }; 
-            DrawRectangleRec(bgRelatorio, WHITE);
-            DrawRectangleLines(bgRelatorio.x, bgRelatorio.y, bgRelatorio.width, bgRelatorio.height, LIGHTGRAY);
-            DrawRectangle(290, 180, sw - 330, 40, (Color){ 237, 242, 249, 255 });
+            DrawRectangleRec(bgRelatorio, corCardBg);
+            DrawRectangleLines(bgRelatorio.x, bgRelatorio.y, bgRelatorio.width, bgRelatorio.height, corBorda);
+            DrawRectangle(290, 180, sw - 330, 40, corCabecalhoLista);
             
-            // O botão Simular Vendas é desenhado depois, isolado no topo!
             DrawRectangleRec(btnSimularVenda, corBotaoAtivo);
             DrawTextUI(fontePrincipal, "SIMULAR VENDAS (BAIXAR ESTOQUE)", 310, 132, 14, WHITE);
 
-            DrawTextUI(fontePrincipal, "PRODUTO", 310, 192, 14, DARKGRAY);
-            DrawTextUI(fontePrincipal, "CHEGARAM (+)", 550, 192, 14, DARKGRAY);
-            DrawTextUI(fontePrincipal, "VENDIDOS (-)", 700, 192, 14, DARKGRAY);
-            DrawTextUI(fontePrincipal, "ESTOQUE TOTAL", 850, 192, 14, DARKGRAY); 
+            DrawTextUI(fontePrincipal, "PRODUTO", 310, 192, 14, corTextoPri);
+            DrawTextUI(fontePrincipal, "CHEGARAM (+)", 550, 192, 14, corTextoPri);
+            DrawTextUI(fontePrincipal, "VENDIDOS (-)", 700, 192, 14, corTextoPri);
+            DrawTextUI(fontePrincipal, "ESTOQUE TOTAL", 850, 192, 14, corTextoPri); 
 
             int idxFim = (paginaAtual * 10) + 10;
             if (idxFim > totalResumo) idxFim = totalResumo;
@@ -580,29 +588,29 @@ int main(void)
             for (int i = paginaAtual * 10; i < idxFim; i++)
             {
                 int yPos = 240 + ((i % 10) * 40); 
-                DrawLine(290, yPos - 10, sw - 40, yPos - 10, Fade(LIGHTGRAY, 0.5f));
+                DrawLine(290, yPos - 10, sw - 40, yPos - 10, Fade(corBorda, 0.5f));
                 
-                DrawTextUI(fontePrincipal, resumo[i].produto_nome, 310, yPos, 14, DARKGRAY);
+                DrawTextUI(fontePrincipal, resumo[i].produto_nome, 310, yPos, 14, corTextoPri);
                 
                 char str[20];
                 sprintf(str, "+%d un.", resumo[i].entradas);
-                DrawTextUI(fontePrincipal, str, 550, yPos, 14, (resumo[i].entradas > 0) ? corEntrada : LIGHTGRAY);
+                DrawTextUI(fontePrincipal, str, 550, yPos, 14, (resumo[i].entradas > 0) ? corEntrada : corTextoSec);
                 
                 sprintf(str, "-%d un.", resumo[i].saidas);
-                DrawTextUI(fontePrincipal, str, 700, yPos, 14, (resumo[i].saidas > 0) ? RED : LIGHTGRAY);
+                DrawTextUI(fontePrincipal, str, 700, yPos, 14, (resumo[i].saidas > 0) ? RED : corTextoSec);
                 
                 sprintf(str, "%d un.", resumo[i].saldo_total);
-                DrawTextUI(fontePrincipal, str, 850, yPos, 14, (resumo[i].saldo_total <= 0) ? RED : DARKGRAY);
+                DrawTextUI(fontePrincipal, str, 850, yPos, 14, (resumo[i].saldo_total <= 0) ? RED : corTextoPri);
             }
 
-            if (totalResumo == 0) DrawTextUI(fontePrincipal, "Nenhuma movimentacao registrada ainda.", 310, 240, 14, GRAY);
+            if (totalResumo == 0) DrawTextUI(fontePrincipal, "Nenhuma movimentacao registrada ainda.", 310, 240, 14, corTextoSec);
             
             if (paginaAtual > 0) { DrawRectangleRec(btnAnt, corSidebar); DrawTextUI(fontePrincipal, "<< Anterior", 305, sh - 50, 14, WHITE); }
             if (paginaAtual < maxPaginas) { DrawRectangleRec(btnProx, corSidebar); DrawTextUI(fontePrincipal, "Proxima >>", 435, sh - 50, 14, WHITE); }
             
             char pagText[50]; 
             sprintf(pagText, "Pagina %d de %d (Total: %d registros)", paginaAtual + 1, maxPaginas + 1, totalResumo);
-            DrawTextUI(fontePrincipal, pagText, 700, sh - 50, 14, GRAY);
+            DrawTextUI(fontePrincipal, pagText, 700, sh - 50, 14, corTextoSec);
         }
 
         EndDrawing();
