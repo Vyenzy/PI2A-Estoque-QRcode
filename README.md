@@ -1,70 +1,81 @@
 # 📦 Dual-System: Gestão de Estoque Inteligente & Marketplace
 
-![Status](https://img.shields.io/badge/Status-Em_Desenvolvimento-yellow)
-![Linguagem](https://img.shields.io/badge/Linguagem-C-blue)
+![Status](https://img.shields.io/badge/Status-Stable_v1.1-brightgreen)
+![Linguagem](https://img.shields.io/badge/Linguagem-C_Nativo-blue)
 ![UI](https://img.shields.io/badge/Interface-Raylib-red)
-![Banco](https://img.shields.io/badge/Banco_de_Dados-SQLite-lightgrey)
+![Banco](https://img.shields.io/badge/Banco_de_Dados-SQLite3-lightgrey)
 
-O **Dual-System** é uma plataforma híbrida de gerenciamento de estoque desenvolvida em **C nativo**. O projeto une a robustez de um banco de dados relacional (SQLite) a uma interface gráfica fluida (Raylib), simulando o ciclo de vida completo de uma mercadoria: desde a chegada no caminhão até a venda promocional para o cliente final.
+O **Dual-System** é uma plataforma híbrida de gerenciamento de estoque desenvolvida 100% em **C nativo**. O projeto une a robustez de um banco de dados relacional (SQLite3) a uma interface gráfica fluida (Raylib), orquestrando a concorrência lógica entre o motor gráfico e as transações de banco. O ecossistema simula o ciclo de vida completo de uma mercadoria: desde a entrada logística via leitor de código de barras até a venda promocional para o cliente final.
+
+Projeto desenvolvido para a disciplina de Projeto Integrador do curso de Engenharia da Computação do Centro Universitário IESB.
 
 ---
 
-## ✨ Características e Funcionalidades
+## ✨ Características e Funcionalidades (v1.1)
 
-O sistema foi arquitetado para atender a duas pontas do negócio (por isso, *Dual-System*): o **Gerente** e o **Cliente**.
+O sistema foi arquitetado para atender a duas pontas do negócio de forma simultânea: o **Gerente** (Back-Office) e o **Cliente** (Marketplace).
 
 ### 🏢 Visão Gerencial (Back-Office)
-* **Visão Geral Paginada:** Monitoramento em tempo real do estoque. O sistema exibe a quantidade, os dias exatos para o vencimento de cada lote e classifica o status (`OK`, `ALERTA` e `ESGOTADO`).
-* **Simulador de Scanner QR Code:** Módulo de "Entrada de Lote" que simula a leitura de manifestos de carga. Gera lotes dinâmicos (com quantidades e validades variadas), calcula os riscos e grava no banco de dados automaticamente.
-* **Vitrine de Alertas (Fila de Prioridade):** Um painel de triagem inteligente. Produtos que acabaram (`ESGOTADO`) assumem o topo da lista para pedido de reposição. Produtos próximos ao vencimento (`ALERTA`) são listados logo abaixo com seus dias restantes exatos, sugerindo o envio para o app de ofertas.
+* **Integração de Hardware (Leitor USB):** Suporte nativo a leitores de código de barras físicos (HID-KBW). A engine foi otimizada para **240 FPS**, prevenindo *overflow* de buffer e perda de caracteres durante a leitura ultrarrápida do hardware.
+* **Visão Geral Paginada:** Monitoramento do estoque com cálculos precisos de validade. A matemática de datas foi delegada ao banco de dados via função `julianday` para evitar bugs de fuso horário.
+* **Vitrine de Alertas (Fila de Prioridade):** Painel de triagem inteligente que ordena produtos por urgência (`ESGOTADO`, `VENCIDO` e `ALERTA`).
 
-### 🛒 Visão do Cliente (Front-End / Marketplace)
-* **App do Consumidor:** Interface focada em conversão. O cliente não vê o painel burocrático, apenas uma grade atrativa de **Ofertas do Dia**.
-* **Precificação Dinâmica:** O sistema aplica regras de negócio reais. Lotes que entram na janela crítica de 14 dias para o vencimento ganham descontos progressivos e agressivos (de **20% até 80% OFF**), gerando senso de urgência ("Restam só X unidades!").
+### 🛒 Visão do Cliente (Marketplace)
+* **Precificação Dinâmica:** Lotes que entram na janela crítica de 14 dias para o vencimento ganham descontos escalonados e automáticos (de **20% até 80% OFF**), gerando giro rápido de estoque.
+* **Trava de Estoque Físico:** Verificação síncrona que impede o esmagamento de dados, bloqueando a adição de itens no carrinho além da quantidade física disponível no banco.
+* **Checkout Transacional:** Processamento em lote das compras, garantindo a baixa imediata e segura no SQLite.
 
-### ⚙️ Funcionalidades Extras (Modo Apresentação)
-* **Botão de Reset Dinâmico:** Uma funcionalidade exclusiva para demonstrações. Limpa todos os lotes "simulados" do banco de dados com um clique, restaurando o cenário original da loja para a próxima apresentação sem precisar reiniciar o app.
+### 🎨 Arquitetura de UI/UX
+* **Motor de Temas Dinâmico (Dark Mode):** Alternância em tempo real entre Tema Claro e Tema Escuro (tons Slate/Zinc), garantindo ergonomia visual para operações prolongadas.
+* **Modern Flat Design:** Interface construída com primitivas ortogonais, realizando um bypass em cálculos curvos de OpenGL para garantir compatibilidade com GPUs integradas mais antigas.
+
+---
+
+## 🚀 Tecnologias Utilizadas
+
+* **C (Padrão ANSI):** Lógica central, structs e ponteiros.
+* **SQLite3:** Motor relacional vendorizado via *Amalgamation* (não requer servidor externo).
+* **Raylib:** Renderização de UI bidimensional acelerada por hardware.
 
 ---
 
-## 🚀 Arquitetura e Tecnologias
+## 🛠️ Como Utilizar e Executar (Plug and Play)
 
-* **Linguagem Base:** `C` (Gerenciamento de memória, lógica e structs).
-* **Persistência:** `SQLite3` (Vendorizado via *Amalgamation* para rodar localmente sem servidores externos).
-* **Motor Gráfico:** `Raylib` (Renderização de UI a 60 FPS acelerada por hardware).
-* **Build e Deploy:** `Makefile` e `Docker` (Cross-compilation de Linux para Windows `x86_64-w64-mingw32`).
+Para facilitar a avaliação da banca e o uso em qualquer computador Windows (sem necessidade de configurar compiladores), o executável já está empacotado.
 
----
+1. Clone ou baixe este repositório.
+2. Navegue até a pasta raiz do projeto.
+3. Dê um duplo clique no arquivo **`painel.exe`**.
+4. O sistema iniciará automaticamente conectado ao banco de dados local `dados/banco_estoque.db`.
+
+### 👨‍💻 Compilação para Desenvolvedores (Make / GCC)
+Caso deseje modificar o código (`interface.c` ou `estoque_db.c`) e gerar uma nova versão de compilação cruzada (Linux -> Windows):
+
+```bash
+# Compila o projeto em modo Debug (mantém o terminal de log aberto em segundo plano)
+make
+
+# Compila o projeto em modo Release (oculta o terminal de comando, exibindo apenas a UI)
+make banca
+
+# Apaga o executável e arquivos objeto para uma compilação limpa
+make clean
 
 ## 📁 Estrutura do Projeto
 
-```text
-Sistema/
-├── dados/
-│   └── banco_estoque.db    # Banco de dados relacional (Schema e Dados)
-├── libs/
-│   ├── libraylib.a         # Motor gráfico pré-compilado
-│   ├── raylib.h            # Headers da interface
-│   ├── sqlite3.c           # Motor do banco de dados 
-│   └── sqlite3.h
-├── interface.c             # Ponto de entrada (Main), lógica de UI e regras de negócio
-├── Makefile                # Automação das rotinas de compilação
-└── painel.exe              # Executável de produção (Windows)
+## 📁 Estrutura do Projeto
 
-🛠️ Como Utilizar e Executar
-Este projeto foi empacotado para execução direta e simplificada.
-
-Para testes de qualidade, rode o programa "painel.exe" com o nome de Sistema.
-
-Compilação para Desenvolvedores (Via Docker/Make)
-Caso deseje modificar o código (interface.c) e gerar uma nova versão:
-
-Abra o terminal do seu ambiente Docker mapeado para a pasta Sistema.
-
-Utilize os comandos automatizados:
-
-make: Compila o projeto em modo Debug (mantém o terminal de log aberto em segundo plano).
-
-make banca: Compila o projeto em modo Release (oculta o terminal de comando, exibindo apenas a UI, ideal para produção).
-
-make clean: Apaga o executável para uma compilação limpa.
+/
+├── .vscode/                # Configurações de ambiente do editor
+├── Sistema/                # Diretório principal da aplicação
+│   ├── dados/              # Arquivos do banco de dados local (.db)
+│   ├── libs/               # Dependências pré-compiladas (Raylib, SQLite3)
+│   ├── estoque_db.c        # Módulo de banco de dados (Transações SQL)
+│   ├── estoque_db.h        # Módulo de banco de dados (Cabeçalhos)
+│   ├── fonte.ttf           # Fonte tipográfica customizada da interface
+│   ├── interface.c         # Ponto de entrada (Main) e renderização visual
+│   ├── Makefile            # Automação das rotinas de build
+│   └── painel.exe          # Executável final de produção (Windows)
+├── .gitignore              # Regras de exclusão de arquivos no controle de versão
+├── docker-compose.yml      # Configuração do ambiente conteinerizado
+└── README.md               # Documentação principal do repositório

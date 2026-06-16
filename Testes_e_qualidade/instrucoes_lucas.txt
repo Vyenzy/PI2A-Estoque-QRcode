@@ -1,4 +1,0 @@
-Suba a planilha de Cenários de Teste. Documente o que
-deve acontecer quando o sistema for testado;
-(Ex: Tentar inserir um lote com validade < 7 dias.
-Resultado esperado: Disparar alerta para a Vitrine).
